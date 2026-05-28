@@ -12,7 +12,7 @@ Snack is Open Source. You can find the code on the [GitHub repo](https://github.
 
 ## Setup guide for developers
 
-If you cloned this repository, use the steps below before running the app:
+If you cloned this repository, use the steps below to run the project locally:
 
 1. Open a terminal in the project root.
 2. Install dependencies with:
