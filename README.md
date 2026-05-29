@@ -30,3 +30,11 @@ If you cloned this repository, use the steps below to run the project locally:
    ```bash
    npm run start
    ```
+
+   ADMIN ACC:
+   kat@gmail.com
+   123456
+
+   User:
+   dave@gmail.com
+   123456

@@ -93,7 +93,7 @@ export default function LoginScreen({ navigation }) {
     try {
       const userRef = doc(db, 'users_basic', uid);
       const snap = await getDoc(userRef);
-      if (snap.exists) {
+      if (snap.exists()) {
         const data = snap.data();
         return { role: data.role || 'user', disabled: data.disabled || false };
       }
@@ -119,7 +119,6 @@ export default function LoginScreen({ navigation }) {
     };
 
     await signIn(userData);
-    navigation.replace(role === 'admin' ? 'AdminDashboard' : 'Home');
   };
 
   const handleLogin = async () => {
@@ -241,7 +240,6 @@ export default function LoginScreen({ navigation }) {
       setCreateUserFirstname('');
       setCreateUserLastname('');
 
-      navigation.replace('Home');
     } catch (err) {
       console.log('Create user error:', err.message);
       notify('Account Creation Failed', err.message);
@@ -545,7 +543,7 @@ const styles = StyleSheet.create({
   },
 
   modelContainer: {
-    marginTop: 100,
+    marginTop: 48,
     marginBottom: -120,
     alignItems: 'center',
   },
@@ -567,6 +565,7 @@ const styles = StyleSheet.create({
   },
 
   input: {
+    width: '100%',
     borderWidth: 1.5,
     borderColor: '#f0f0f0',
     borderRadius: 14,
