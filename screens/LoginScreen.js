@@ -5,7 +5,8 @@ import {
   StyleSheet, Pressable, ActivityIndicator, Modal,
   Animated, Easing, Dimensions,
 } from 'react-native';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import LoginLayout from '../components/layouts/LoginLayout';
 import ModelViewer from '../components/ModelViewer';
 import { auth, db } from '../firebaseConfig';
@@ -16,9 +17,9 @@ import {
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { AuthContext } from '../contexts/AuthContext';
 
-GoogleSignin.configure({
-  webClientId: '132571887694-v85c2lialak4j7vq10ur86se9imj4u1k.apps.googleusercontent.com',
-});
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_WEB_CLIENT_ID = '132571887694-v85c2lialak4j7vq10ur86se9imj4u1k.apps.googleusercontent.com';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -44,6 +45,12 @@ export default function LoginScreen({ navigation }) {
   const loginOpacityAnim = useRef(new Animated.Value(0)).current;
 
   const { signIn } = useContext(AuthContext);
+  const [googleRequest, googleResponse, promptGoogleLogin] = Google.useAuthRequest({
+    expoClientId: GOOGLE_WEB_CLIENT_ID,
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId: GOOGLE_WEB_CLIENT_ID,
+  });
 
   // ── intro sequence ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -83,6 +90,29 @@ export default function LoginScreen({ navigation }) {
     ]).start(() => setIntroVisible(false));
   }, []);
 
+  useEffect(() => {
+    const completeGoogleLogin = async () => {
+      if (googleResponse?.type !== 'success') return;
+
+      try {
+        const idToken = googleResponse.authentication?.idToken;
+        const accessToken = googleResponse.authentication?.accessToken;
+
+        if (!idToken && !accessToken) {
+          throw new Error('Missing Google authentication token');
+        }
+
+        const credential = GoogleAuthProvider.credential(idToken, accessToken);
+        const { user: firebaseUser } = await signInWithCredential(auth, credential);
+        await handleAuthSuccess(firebaseUser);
+      } catch (error) {
+        Alert.alert('Google Authentication failed', error.message);
+      }
+    };
+
+    completeGoogleLogin();
+  }, [googleResponse]);
+
   // ── helpers (unchanged) ─────────────────────────────────────────────────────
   const notify = (title, msg) => {
     if (Platform.OS === 'web') window.alert(`${title}: ${msg}`);
@@ -93,7 +123,7 @@ export default function LoginScreen({ navigation }) {
     try {
       const userRef = doc(db, 'users_basic', uid);
       const snap = await getDoc(userRef);
-      if (snap.exists) {
+      if (snap.exists()) {
         const data = snap.data();
         return { role: data.role || 'user', disabled: data.disabled || false };
       }
@@ -147,32 +177,15 @@ export default function LoginScreen({ navigation }) {
   };
 
   const handleGoogleLogin = async () => {
-    if (Platform.OS === 'web') {
-      try {
+    try {
+      if (Platform.OS === 'web') {
         const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
         await handleAuthSuccess(result.user);
-      } catch (error) {
-        window.alert(`Google Auth failed: ${error.message}`);
+        return;
       }
-      return;
-    }
 
-    try {
-      await GoogleSignin.hasPlayServices({
-        showPlayServicesUpdateDialog: true,
-      });
-
-      const { idToken } = await GoogleSignin.signIn();
-
-      const googleCredential = GoogleAuthProvider.credential(idToken);
-
-      const { user: firebaseUser } = await signInWithCredential(
-        auth,
-        googleCredential
-      );
-
-      await handleAuthSuccess(firebaseUser);
+      await promptGoogleLogin({ useProxy: true });
     } catch (error) {
       Alert.alert('Google Authentication failed', error.message);
     }

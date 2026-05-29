@@ -1,5 +1,6 @@
 {
   "expo": {
+    "scheme": "fruitsaga",
     "android": {
       "package": "com.yourcompany.fruitsaga",
       "adaptiveIcon": {
@@ -16,9 +17,12 @@
     "ios": {
       "supportsTablet": true
     },
-
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font"
+    ]
   }
 }
