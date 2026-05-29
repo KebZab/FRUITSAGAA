@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo, useRef } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Canvas, useFrame } from '@react-three/fiber/native';
 import { useGLTF } from '@react-three/drei/native';
@@ -6,13 +6,28 @@ import { Asset } from 'expo-asset';
 import { LOGO_MODEL } from './modelSources';
 
 function useAssetUri(source) {
-  const asset = useMemo(() => Asset.fromModule(source), [source]);
-  return asset.localUri || asset.uri || null;
+  const [uri, setUri] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const asset = Asset.fromModule(source);
+
+    asset.downloadAsync().then(() => {
+      if (mounted) {
+        setUri(asset.localUri || asset.uri || null);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [source]);
+
+  return uri;
 }
 
-function RotatingModel({ source, scale = 1.8, position = [0, -0.1, 0] }) {
+function RotatingModel({ uri, scale = 2.8, position = [0, -0.15, 0] }) {
   const group = useRef(null);
-  const uri = useAssetUri(source);
   const { scene } = useGLTF(uri);
 
   useFrame(() => {
@@ -28,20 +43,31 @@ function RotatingModel({ source, scale = 1.8, position = [0, -0.1, 0] }) {
   );
 }
 
-export default function ModelViewer({ modelSource = LOGO_MODEL, style, height = 220 }) {
+export default function ModelViewer({
+  modelSource = LOGO_MODEL,
+  style,
+  height = 190,
+  scale = 4.8,
+  cameraZ = 2.8,
+  position = [0, -0.12, 0],
+}) {
+  const uri = useAssetUri(modelSource);
+
   return (
     <View style={[styles.container, { height }, style]}>
+      {!uri ? null : (
       <Canvas
         style={StyleSheet.absoluteFill}
-        camera={{ position: [0, 0, 4], fov: 45 }}
+        camera={{ position: [0, 0, cameraZ], fov: 42 }}
         gl={{ antialias: true, alpha: true }}
       >
         <ambientLight intensity={1.2} />
         <directionalLight position={[3, 3, 5]} intensity={1.5} />
         <Suspense fallback={null}>
-          <RotatingModel source={modelSource} />
+          <RotatingModel uri={uri} scale={scale} position={position} />
         </Suspense>
       </Canvas>
+      )}
     </View>
   );
 }

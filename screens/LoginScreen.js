@@ -149,7 +149,6 @@ export default function LoginScreen({ navigation }) {
     };
 
     await signIn(userData);
-    navigation.replace(role === 'admin' ? 'AdminDashboard' : 'Home');
   };
 
   const handleLogin = async () => {
@@ -253,8 +252,6 @@ export default function LoginScreen({ navigation }) {
       setCreateUserConfirmPass('');
       setCreateUserFirstname('');
       setCreateUserLastname('');
-
-      navigation.replace('Home');
     } catch (err) {
       console.log('Create user error:', err.message);
       notify('Account Creation Failed', err.message);
@@ -363,7 +360,7 @@ export default function LoginScreen({ navigation }) {
               },
             ]}
           >
-            <ModelViewer />
+            <ModelViewer height={180} scale={4.6} cameraZ={2.8} position={[0, -0.12, 0]} />
           </Animated.View>
 
           <Animated.View
@@ -387,7 +384,7 @@ export default function LoginScreen({ navigation }) {
 
           {/* 3-D apple sitting atop the card */}
           <View style={styles.modelContainer}>
-            <ModelViewer />
+            <ModelViewer height={170} scale={4.9} cameraZ={2.6} position={[0, -0.12, 0]} />
           </View>
 
           <Text style={styles.title}>Fruit Saga</Text>
@@ -558,9 +555,10 @@ const styles = StyleSheet.create({
   },
 
   modelContainer: {
-    marginTop: 100,
-    marginBottom: -120,
+    marginTop: 4,
+    marginBottom: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
 
   title: {

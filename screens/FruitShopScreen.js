@@ -227,7 +227,7 @@ export default function FruitShopScreen({ navigation }) {
               <Fruit3DViewer 
                 fruitId={featuredFruit.id}
                 emoji={featuredFruit.emoji}
-                style={{ width: '100%', height: 280 }}
+                style={{ width: '100%', height: 320 }}
               />
             </View>
 

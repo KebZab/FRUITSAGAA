@@ -10,7 +10,7 @@ function useAssetUri(source) {
   return asset.uri || asset.localUri || null;
 }
 
-export default function ModelViewer({ modelSource = LOGO_MODEL }) {
+export default function ModelViewer({ modelSource = LOGO_MODEL, height = 190, scale = 9.5 }) {
   const divRef = useRef(null);
   const modelRef = useRef(null);
   const uri = useAssetUri(modelSource);
@@ -24,10 +24,9 @@ export default function ModelViewer({ modelSource = LOGO_MODEL }) {
     if (!div || !uri) return;
 
     const scene = new THREE.Scene();
-    const width = 300;
-    const height = 300;
-    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.z = 2.5;
+    const width = div.clientWidth || 300;
+    const camera = new THREE.PerspectiveCamera(58, width / height, 0.1, 1000);
+    camera.position.z = 2.1;
 
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -55,7 +54,7 @@ export default function ModelViewer({ modelSource = LOGO_MODEL }) {
       uri,
       (gltf) => {
         const model = gltf.scene;
-        model.scale.set(10.5, 10.5, 10.5);
+        model.scale.set(scale, scale, scale);
         scene.add(model);
         modelRef.current = model;
       },
@@ -88,7 +87,7 @@ export default function ModelViewer({ modelSource = LOGO_MODEL }) {
     return null;
   }
 
-  return <div ref={divRef} style={styles.container} />;
+  return <div ref={divRef} style={{ ...styles.container, height }} />;
 }
 
 const styles = StyleSheet.create({
@@ -97,7 +96,6 @@ const styles = StyleSheet.create({
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
     backgroundColor: 'transparent',
   },
 });
