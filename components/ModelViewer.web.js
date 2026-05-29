@@ -10,7 +10,13 @@ function useAssetUri(source) {
   return asset.uri || asset.localUri || null;
 }
 
-export default function ModelViewer({ modelSource = LOGO_MODEL, height = 190, scale = 9.5 }) {
+export default function ModelViewer({
+  modelSource = LOGO_MODEL,
+  height = 190,
+  scale = 9.5,
+  cameraZ = 2.1,
+  position = [0, 0, 0],
+}) {
   const divRef = useRef(null);
   const modelRef = useRef(null);
   const uri = useAssetUri(modelSource);
@@ -26,7 +32,7 @@ export default function ModelViewer({ modelSource = LOGO_MODEL, height = 190, sc
     const scene = new THREE.Scene();
     const width = div.clientWidth || 300;
     const camera = new THREE.PerspectiveCamera(58, width / height, 0.1, 1000);
-    camera.position.z = 2.1;
+    camera.position.z = cameraZ;
 
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -55,6 +61,7 @@ export default function ModelViewer({ modelSource = LOGO_MODEL, height = 190, sc
       (gltf) => {
         const model = gltf.scene;
         model.scale.set(scale, scale, scale);
+        model.position.set(position[0], position[1], position[2]);
         scene.add(model);
         modelRef.current = model;
       },
@@ -81,7 +88,7 @@ export default function ModelViewer({ modelSource = LOGO_MODEL, height = 190, sc
       }
       renderer.dispose();
     };
-  }, [uri]);
+  }, [uri, height, scale, cameraZ, position[0], position[1], position[2]]);
 
   if (Platform.OS !== 'web') {
     return null;

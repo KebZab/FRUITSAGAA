@@ -1,5 +1,5 @@
 // screens/LoginScreen.js
-import React, { useState, useContext, useRef, useEffect } from 'react';
+import React, { useState, useContext, useRef, useEffect, useMemo } from 'react';
 import {
   View, Text, TextInput, Alert, Platform,
   StyleSheet, Pressable, ActivityIndicator, Modal,
@@ -35,6 +35,19 @@ export default function LoginScreen({ navigation }) {
   const [createUserFirstname, setCreateUserFirstname] = useState('');
   const [createUserLastname, setCreateUserLastname] = useState('');
   const [creatingUser, setCreatingUser] = useState(false);
+  const isWeb = Platform.OS === 'web';
+
+  const introModelProps = useMemo(() => (
+    isWeb
+      ? { height: 230, scale: 5.4, cameraZ: 2.35, position: [0, -0.04, 0] }
+      : { height: 180, scale: 4.6, cameraZ: 2.8, position: [0, -0.12, 0] }
+  ), [isWeb]);
+
+  const cardModelProps = useMemo(() => (
+    isWeb
+      ? { height: 200, scale: 8.6, cameraZ: 2.15, position: [0, -0.24, 0] }
+      : { height: 150, scale: 6.5, cameraZ: 2.5, position: [0, -0.58, 0] }
+  ), [isWeb]);
 
   // ── intro animation state ───────────────────────────────────────────────────
   const [introVisible, setIntroVisible] = useState(true);
@@ -360,7 +373,7 @@ export default function LoginScreen({ navigation }) {
               },
             ]}
           >
-            <ModelViewer height={180} scale={4.6} cameraZ={2.8} position={[0, -0.12, 0]} />
+            <ModelViewer {...introModelProps} />
           </Animated.View>
 
           <Animated.View
@@ -382,9 +395,9 @@ export default function LoginScreen({ navigation }) {
       <Animated.View style={{ opacity: loginOpacityAnim }}>
         <View style={styles.card}>
 
-          {/* 3-D apple sitting atop the card */}
+          {/* 3-D apple sitting atop the card D */}
           <View style={styles.modelContainer}>
-            <ModelViewer height={170} scale={4.9} cameraZ={2.6} position={[0, -0.12, 0]} />
+            <ModelViewer {...cardModelProps} />
           </View>
 
           <Text style={styles.title}>Fruit Saga</Text>
