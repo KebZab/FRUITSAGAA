@@ -8,7 +8,6 @@ import {
 import MainLayout from '../components/layouts/AppLayout';
 import { AuthContext } from '../contexts/AuthContext';
 import { db, auth } from '../firebaseConfig';
-import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
 
 // ─── User Card ────────────────────────────────────────────────────────────────
 function UserCard({ u, currentUserId, onToggleDisable, onChangeRole }) {

@@ -33,7 +33,6 @@ export default function AppNavigator() {
 
   return (
     <Stack.Navigator
-      key={user.role}
       screenOptions={{ headerShown: false }}
       initialRouteName={user.role === 'admin' ? 'AdminDashboard' : 'Home'}
     >
