@@ -20,6 +20,7 @@ import { AuthContext } from '../contexts/AuthContext';
 WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_WEB_CLIENT_ID = '132571887694-v85c2lialak4j7vq10ur86se9imj4u1k.apps.googleusercontent.com';
+const GOOGLE_ANDROID_CLIENT_ID = '132571887694-9bt9sfqvgcc8q0l07lb142lu8plqlri.apps.googleusercontent.com';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -59,9 +60,8 @@ export default function LoginScreen({ navigation }) {
 
   const { signIn } = useContext(AuthContext);
   const [googleRequest, googleResponse, promptGoogleLogin] = Google.useAuthRequest({
-    expoClientId: GOOGLE_WEB_CLIENT_ID,
     webClientId: GOOGLE_WEB_CLIENT_ID,
-    androidClientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     iosClientId: GOOGLE_WEB_CLIENT_ID,
   });
 
@@ -148,6 +148,33 @@ export default function LoginScreen({ navigation }) {
 
   const handleAuthSuccess = async (firebaseUser) => {
     const { role, disabled } = await fetchUserData(firebaseUser.uid);
+    
+    // Check if user document exists, if not create it
+    try {
+      const userRef = doc(db, 'users_basic', firebaseUser.uid);
+      const snap = await getDoc(userRef);
+      
+      if (!snap.exists()) {
+        // New user - create document
+        const nameParts = (firebaseUser.displayName || firebaseUser.email.split('@')[0]).split(' ');
+        const firstname = nameParts[0] || '';
+        const lastname = nameParts.slice(1).join(' ') || '';
+        
+        await setDoc(userRef, {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email.toLowerCase(),
+          firstname,
+          lastname,
+          username: firebaseUser.email.split('@')[0],
+          role: 'user',
+          disabled: false,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      console.log('Error creating user document:', e);
+    }
+    
     if (disabled) {
       await signOut(auth).catch(() => {});
       notify('Account Disabled', 'Your account has been disabled. Please contact support.');
@@ -197,7 +224,7 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
-      await promptGoogleLogin({ useProxy: true });
+      await promptGoogleLogin({ useProxy: false });
     } catch (error) {
       Alert.alert('Google Authentication failed', error.message);
     }
