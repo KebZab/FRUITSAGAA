@@ -17,12 +17,15 @@ export function AuthProvider({ children }) {
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
+        return parsedUser;
       } else {
         setUser(null);
+        return null;
       }
     } catch (error) {
       console.error('Error checking user session:', error);
       setUser(null);
+      return null;
     } finally {
       setLoading(false);
     }

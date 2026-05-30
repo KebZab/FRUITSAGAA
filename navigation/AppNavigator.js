@@ -17,6 +17,7 @@ const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
   const { user, loading } = useContext(AuthContext);
+  const initialAppRoute = user?.role === 'admin' ? 'AdminDashboard' : 'Home';
 
   if (loading) {
     return null; // or a loading screen
@@ -33,8 +34,9 @@ export default function AppNavigator() {
 
   return (
     <Stack.Navigator
+      key={`app-${initialAppRoute}`}
       screenOptions={{ headerShown: false }}
-      initialRouteName={user.role === 'admin' ? 'AdminDashboard' : 'Home'}
+      initialRouteName={initialAppRoute}
     >
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
