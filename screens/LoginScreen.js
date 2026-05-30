@@ -148,6 +148,33 @@ export default function LoginScreen({ navigation }) {
 
   const handleAuthSuccess = async (firebaseUser) => {
     const { role, disabled } = await fetchUserData(firebaseUser.uid);
+    
+    // Check if user document exists, if not create it
+    try {
+      const userRef = doc(db, 'users_basic', firebaseUser.uid);
+      const snap = await getDoc(userRef);
+      
+      if (!snap.exists()) {
+        // New user - create document
+        const nameParts = (firebaseUser.displayName || firebaseUser.email.split('@')[0]).split(' ');
+        const firstname = nameParts[0] || '';
+        const lastname = nameParts.slice(1).join(' ') || '';
+        
+        await setDoc(userRef, {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email.toLowerCase(),
+          firstname,
+          lastname,
+          username: firebaseUser.email.split('@')[0],
+          role: 'user',
+          disabled: false,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      console.log('Error creating user document:', e);
+    }
+    
     if (disabled) {
       await signOut(auth).catch(() => {});
       notify('Account Disabled', 'Your account has been disabled. Please contact support.');
