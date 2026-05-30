@@ -53,7 +53,7 @@ export function AuthProvider({ children }) {
   }, [verifyUserSession]);
 
   const signIn = async (userData) => {
-    // userData must include: uid, email, name, role ('admin' | 'user')
+    // userData must include: uid, email, name, role ('admin' | 'inventoryChecker' | 'user')
     setUser(userData);
     await AsyncStorage.setItem('user', JSON.stringify(userData));
   };

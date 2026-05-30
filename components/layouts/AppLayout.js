@@ -10,7 +10,9 @@ export default function MainLayout({ title, navigation, children, name }) {
   const { user, signOut, verifyUserSession } = useContext(AuthContext);
 
   const displayName = user?.name ?? name ?? 'Guest';
-  const isAdmin = user?.role === 'admin';
+  const userRole = user?.role || 'user';
+  const isAdmin = userRole === 'admin';
+  const isInventoryChecker = userRole === 'inventoryChecker';
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -56,10 +58,11 @@ export default function MainLayout({ title, navigation, children, name }) {
         visible={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         isAdmin={isAdmin}
+        role={userRole}
         userName={displayName}
         onHome={() => {
           setSidebarOpen(false);
-          navigation.navigate(isAdmin ? 'AdminDashboard' : 'Home');
+          navigation.navigate(isAdmin ? 'AdminDashboard' : isInventoryChecker ? 'InventoryDashboard' : 'Home');
         }}
         // Admin-only nav
         onAdminOrders={() => {
@@ -69,6 +72,10 @@ export default function MainLayout({ title, navigation, children, name }) {
         onAdminUsers={() => {
           setSidebarOpen(false);
           navigation.navigate('AdminUsers');
+        }}
+        onInventoryDashboard={() => {
+          setSidebarOpen(false);
+          navigation.navigate('InventoryDashboard');
         }}
         // User-only nav
         onShop={() => {

@@ -25,15 +25,21 @@ export default function Sidebar({
   visible,
   onClose,
   isAdmin,
+  role,
   userName,
   onHome,
   onShop,
   onMyOrders,
   onAdminOrders,
   onAdminUsers,
+  onInventoryDashboard,
   onUsersManagement,
   onUsersManagementModal,
 }) {
+  const effectiveRole = role || (isAdmin ? 'admin' : 'user');
+  const isInventoryChecker = effectiveRole === 'inventoryChecker';
+  const isAdminRole = effectiveRole === 'admin';
+
   return (
     <Modal
       visible={visible}
@@ -48,16 +54,16 @@ export default function Sidebar({
 
               {/* Header */}
               <View style={styles.drawerHeader}>
-                <View style={[styles.avatar, { backgroundColor: isAdmin ? PURPLE : PINK }]}>
+                <View style={[styles.avatar, { backgroundColor: isAdminRole ? PURPLE : isInventoryChecker ? GREEN : PINK }]}>
                   <Text style={styles.avatarText}>
                     {(userName?.[0] ?? '?').toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.headerInfo}>
                   <Text style={styles.headerName} numberOfLines={1}>{userName}</Text>
-                  <View style={[styles.roleBadge, { backgroundColor: isAdmin ? '#EDE9FE' : '#FFE4EE' }]}>
-                    <Text style={[styles.roleText, { color: isAdmin ? PURPLE : PINK }]}>
-                      {isAdmin ? '🛡️ Admin' : '👤 User'}
+                  <View style={[styles.roleBadge, { backgroundColor: isAdminRole ? '#EDE9FE' : isInventoryChecker ? '#DCFCE7' : '#FFE4EE' }]}>
+                    <Text style={[styles.roleText, { color: isAdminRole ? PURPLE : isInventoryChecker ? GREEN : PINK }]}>
+                      {isAdminRole ? '🛡️ Admin' : isInventoryChecker ? '📦 Inventory' : '👤 User'}
                     </Text>
                   </View>
                 </View>
@@ -70,7 +76,7 @@ export default function Sidebar({
 
               {/* Navigation */}
               <View style={styles.navSection}>
-                {isAdmin ? (
+                {isAdminRole ? (
                   <>
                     <Text style={styles.sectionLabel}>ADMIN</Text>
                     <NavItem
@@ -86,6 +92,24 @@ export default function Sidebar({
                       onPress={onAdminUsers}
                       color={PURPLE}
                       bg="#EDE9FE"
+                    />
+                  </>
+                ) : isInventoryChecker ? (
+                  <>
+                    <Text style={styles.sectionLabel}>INVENTORY</Text>
+                    <NavItem
+                      emoji="📦"
+                      label="Inventory Dashboard"
+                      onPress={onInventoryDashboard}
+                      color={GREEN}
+                      bg="#DCFCE7"
+                    />
+                    <NavItem
+                      emoji="🛒"
+                      label="Browse Fruits"
+                      onPress={onShop}
+                      color={PINK}
+                      bg="#FFF0F5"
                     />
                   </>
                 ) : (

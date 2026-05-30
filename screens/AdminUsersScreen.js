@@ -14,7 +14,10 @@ import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 function UserCard({ u, currentUserId, onToggleDisable, onChangeRole }) {
   const [toggling, setToggling] = useState(false);
   const isSelf = u.id === currentUserId;
-  const isAdmin = u.role === 'admin';
+  const role = u.role || 'user';
+  const isAdmin = role === 'admin';
+  const isInventoryChecker = role === 'inventoryChecker';
+  const nextRole = role === 'user' ? 'inventoryChecker' : role === 'inventoryChecker' ? 'admin' : 'user';
 
   const handleToggle = async () => {
     if (isSelf) {
@@ -45,7 +48,7 @@ function UserCard({ u, currentUserId, onToggleDisable, onChangeRole }) {
 
   const handleRoleToggle = async () => {
     if (isSelf) return;
-    const newRole = isAdmin ? 'user' : 'admin';
+    const newRole = nextRole;
     const doChange = async () => {
       setToggling(true);
       await onChangeRole(u.id, newRole);
@@ -65,7 +68,7 @@ function UserCard({ u, currentUserId, onToggleDisable, onChangeRole }) {
     <View style={[card.container, u.disabled && card.containerDisabled]}>
       {/* Avatar + Info */}
       <View style={card.leftSection}>
-        <View style={[card.avatar, isAdmin && card.avatarAdmin, u.disabled && card.avatarDisabled]}>
+        <View style={[card.avatar, isAdmin && card.avatarAdmin, isInventoryChecker && card.avatarInventory, u.disabled && card.avatarDisabled]}>
           <Text style={card.avatarText}>
             {(u.firstname?.[0] || u.email?.[0] || '?').toUpperCase()}
           </Text>
@@ -79,9 +82,15 @@ function UserCard({ u, currentUserId, onToggleDisable, onChangeRole }) {
           </View>
           <Text style={card.email} numberOfLines={1}>{u.email}</Text>
           <View style={card.badgeRow}>
-            <View style={[card.roleBadge, isAdmin ? card.roleBadgeAdmin : card.roleBadgeUser]}>
-              <Text style={[card.roleText, isAdmin ? card.roleTextAdmin : card.roleTextUser]}>
-                {isAdmin ? '🛡️ Admin' : '👤 User'}
+            <View style={[
+              card.roleBadge,
+              isAdmin ? card.roleBadgeAdmin : isInventoryChecker ? card.roleBadgeInventory : card.roleBadgeUser,
+            ]}>
+              <Text style={[
+                card.roleText,
+                isAdmin ? card.roleTextAdmin : isInventoryChecker ? card.roleTextInventory : card.roleTextUser,
+              ]}>
+                {isAdmin ? '🛡️ Admin' : isInventoryChecker ? '📦 Inventory' : '👤 User'}
               </Text>
             </View>
             {u.disabled && (
@@ -116,7 +125,7 @@ function UserCard({ u, currentUserId, onToggleDisable, onChangeRole }) {
             disabled={toggling}
           >
             <Text style={card.roleBtnText}>
-              {isAdmin ? '↓ User' : '↑ Admin'}
+              {`→ ${nextRole === 'admin' ? 'Admin' : nextRole === 'inventoryChecker' ? 'Inventory' : 'User'}`}
             </Text>
           </Pressable>
         </View>
@@ -132,7 +141,7 @@ export default function AdminUsersScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterRole, setFilterRole] = useState('all'); // 'all' | 'admin' | 'user'
+  const [filterRole, setFilterRole] = useState('all'); // 'all' | 'admin' | 'inventoryChecker' | 'user'
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'active' | 'disabled'
 
   const fetchUsers = useCallback(async (silent = false) => {
@@ -183,7 +192,8 @@ export default function AdminUsersScreen({ navigation }) {
   const filteredUsers = users.filter((u) => {
     const fullName = `${u.firstname || ''} ${u.lastname || ''} ${u.email || ''}`.toLowerCase();
     const matchSearch = search.trim() === '' || fullName.includes(search.toLowerCase());
-    const matchRole = filterRole === 'all' || u.role === filterRole || (!u.role && filterRole === 'user');
+    const userRole = u.role || 'user';
+    const matchRole = filterRole === 'all' || userRole === filterRole;
     const matchStatus = filterStatus === 'all'
       || (filterStatus === 'active' && !u.disabled)
       || (filterStatus === 'disabled' && u.disabled);
@@ -193,6 +203,7 @@ export default function AdminUsersScreen({ navigation }) {
   const stats = {
     total: users.length,
     admins: users.filter((u) => u.role === 'admin').length,
+    inventory: users.filter((u) => u.role === 'inventoryChecker').length,
     disabled: users.filter((u) => u.disabled).length,
     active: users.filter((u) => !u.disabled).length,
   };
@@ -220,6 +231,7 @@ export default function AdminUsersScreen({ navigation }) {
             {[
               { label: 'Total', value: stats.total, color: '#6366F1' },
               { label: 'Admins', value: stats.admins, color: '#8B5CF6' },
+              { label: 'Inventory', value: stats.inventory, color: '#10B981' },
               { label: 'Active', value: stats.active, color: '#10B981' },
               { label: 'Disabled', value: stats.disabled, color: '#EF4444' },
             ].map((stat) => (
@@ -251,14 +263,20 @@ export default function AdminUsersScreen({ navigation }) {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll}>
             <View style={s.chipRow}>
               {/* Role filter */}
-              {['all', 'admin', 'user'].map((r) => (
+              {['all', 'admin', 'inventoryChecker', 'user'].map((r) => (
                 <Pressable
                   key={`role-${r}`}
                   style={[s.chip, filterRole === r && s.chipActive]}
                   onPress={() => setFilterRole(r)}
                 >
                   <Text style={[s.chipText, filterRole === r && s.chipTextActive]}>
-                    {r === 'all' ? '👤 All Roles' : r === 'admin' ? '🛡️ Admins' : '👤 Users'}
+                    {r === 'all'
+                      ? '👤 All Roles'
+                      : r === 'admin'
+                        ? '🛡️ Admins'
+                        : r === 'inventoryChecker'
+                          ? '📦 Inventory'
+                          : '👤 Users'}
                   </Text>
                 </Pressable>
               ))}
@@ -401,6 +419,7 @@ const card = StyleSheet.create({
     marginRight: 12,
   },
   avatarAdmin: { backgroundColor: PURPLE },
+  avatarInventory: { backgroundColor: '#10B981' },
   avatarDisabled: { backgroundColor: '#d1d5db' },
   avatarText: { color: '#fff', fontWeight: '800', fontSize: 18 },
   info: { flex: 1 },
@@ -413,9 +432,11 @@ const card = StyleSheet.create({
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 5, flexWrap: 'wrap' },
   roleBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   roleBadgeAdmin: { backgroundColor: '#EDE9FE' },
+  roleBadgeInventory: { backgroundColor: '#DCFCE7' },
   roleBadgeUser: { backgroundColor: '#F3F4F6' },
   roleText: { fontSize: 11, fontWeight: '600' },
   roleTextAdmin: { color: PURPLE },
+  roleTextInventory: { color: '#10B981' },
   roleTextUser: { color: '#6B7280' },
   disabledBadge: { backgroundColor: '#FEE2E2', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   disabledBadgeText: { fontSize: 11, color: '#EF4444', fontWeight: '600' },

@@ -2,77 +2,83 @@
 import React, { useState, useContext, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  Alert, Platform, Modal, FlatList, Dimensions,
+  Alert, Platform, Modal, FlatList,
 } from 'react-native';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../firebaseConfig';
-import { addDoc, collection } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  runTransaction,
+  setDoc,
+} from 'firebase/firestore';
+import Sidebar from '../components/Sidebar';
 import Fruit3DViewer from '../components/Fruit3DViewerSimple';
-
-// ─── Fruit catalogue ────────────────────────────────────────────────────────
-const FRUITS = [
-  { id: 'apple',      name: 'Apple',       emoji: '🍎', price: 25,  unit: 'per pc',   description: 'Crisp & sweet red apple' },
-  { id: 'banana',     name: 'Banana',      emoji: '🍌', price: 12,  unit: 'per pc',   description: 'Ripe Lakatan banana' },
-  { id: 'mango',      name: 'Mango',       emoji: '🥭', price: 40,  unit: 'per pc',   description: 'Sweet Philippine carabao mango' },
-  { id: 'strawberry', name: 'Strawberry',  emoji: '🍓', price: 90,  unit: 'per 250g', description: 'Fresh Baguio strawberries' },
-  { id: 'grapes',     name: 'Grapes',      emoji: '🍇', price: 120, unit: 'per 500g', description: 'Seedless green grapes' },
-  { id: 'watermelon', name: 'Watermelon',  emoji: '🍉', price: 60,  unit: 'per kg',   description: 'Chilled seedless watermelon' },
-  { id: 'orange',     name: 'Orange',      emoji: '🍊', price: 30,  unit: 'per pc',   description: 'Juicy navel orange' },
-  { id: 'pineapple',  name: 'Pineapple',   emoji: '🍍', price: 55,  unit: 'per pc',   description: 'Sweet Tagaytay pineapple' },
-  { id: 'blueberry',  name: 'Blueberry',   emoji: '🫐', price: 150, unit: 'per 250g', description: 'Imported fresh blueberries' },
-  { id: 'lemon',      name: 'Lemon',       emoji: '🍋', price: 35,  unit: 'per pc',   description: 'Ripe native lemon' },
-];
+import { FRUITS, FRUIT_MAP, INVENTORY_COLLECTION } from '../data/fruitCatalog';
 
 const PINK = '#dd2a7b';
 
-function SideMenu({ visible, onClose, navigation, onLogout }) {
-  if (!visible) return null;
-  return (
-    <>
-      <View style={menu.sidebar}>
-        <View style={menu.brand}>
-        <Text style={menu.brandEmoji}>🍓</Text>
-          <Text style={menu.brandName}>FreshSaga</Text>
-        </View>
-        <View style={menu.divider} />
-        {[
-          { icon: '🏠', label: 'Home',      screen: 'Home' },
-          { icon: '🛒', label: 'Shop',      screen: 'FruitShop' },
-          { icon: '📋', label: 'My Orders', screen: 'UserOrders' },
-          { icon: '👤', label: 'Profile',   screen: 'Profile' },
-        ].map((item) => (
-          <Pressable
-            key={item.screen}
-            style={({ pressed }) => [menu.item, pressed && menu.itemPressed]}
-            onPress={() => { onClose(); navigation.navigate(item.screen); }}
-          >
-            <Text style={menu.itemIcon}>{item.icon}</Text>
-            <Text style={menu.itemLabel}>{item.label}</Text>
-          </Pressable>
-        ))}
-        <View style={menu.spacer} />
-        <View style={menu.divider} />
-        <Pressable
-          style={({ pressed }) => [menu.logoutBtn, pressed && menu.logoutPressed]}
-          onPress={onLogout}
-        >
-          <Text style={menu.logoutIcon}>🚪</Text>
-          <Text style={menu.logoutText}>Sign Out</Text>
-        </Pressable>
-      </View>
-      <Pressable style={menu.overlay} onPress={onClose} />
-    </>
-  );
-}
-
 export default function FruitShopScreen({ navigation }) {
   const { user, signOut } = useContext(AuthContext);
+  const userRole = user?.role || 'user';
+  const canOrder = userRole !== 'inventoryChecker';
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [cart, setCart] = useState({});
+  const [inventory, setInventory] = useState({});
   const [cartVisible, setCartVisible] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [featuredIndex, setFeaturedIndex] = useState(0);
+
+  React.useEffect(() => {
+    let unsubscribe = null;
+    let mounted = true;
+
+    const seedInventory = async () => {
+      const snap = await getDocs(collection(db, INVENTORY_COLLECTION));
+      const existingById = new Map(snap.docs.map((d) => [d.id, d.data() || {}]));
+
+      await Promise.all(
+        FRUITS.map((fruit) => {
+          const existing = existingById.get(fruit.id);
+          return setDoc(doc(db, INVENTORY_COLLECTION, fruit.id), {
+            fruitId: fruit.id,
+            name: fruit.name,
+            emoji: fruit.emoji,
+            price: fruit.price,
+            unit: fruit.unit,
+            description: fruit.description,
+            stock: Number(existing?.stock ?? fruit.defaultStock ?? 0),
+            updatedAt: new Date().toISOString(),
+          });
+        })
+      );
+    };
+
+    const start = async () => {
+      try {
+        await seedInventory();
+        unsubscribe = onSnapshot(collection(db, INVENTORY_COLLECTION), (snap) => {
+          const next = {};
+          snap.docs.forEach((d) => {
+            next[d.id] = Number(d.data()?.stock ?? FRUIT_MAP[d.id]?.defaultStock ?? 0);
+          });
+          if (!mounted) return;
+          setInventory(next);
+        });
+      } catch (error) {
+        console.log('shop inventory load error:', error);
+      }
+    };
+
+    start();
+    return () => {
+      mounted = false;
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   const notify = (title, msg) => {
     if (Platform.OS === 'web') window.alert(`${title}: ${msg}`);
@@ -85,8 +91,28 @@ export default function FruitShopScreen({ navigation }) {
     // Navigator will automatically switch to Login screen when user becomes null
   };
 
-  const addToCart = (fruitId) =>
+  const getAvailableStock = useCallback(
+    (fruitId) => Number(inventory[fruitId] ?? FRUIT_MAP[fruitId]?.defaultStock ?? 0),
+    [inventory]
+  );
+
+  const addToCart = (fruitId) => {
+    if (!canOrder) {
+      notify('Read Only', 'Inventory checker can only view available fruits.');
+      return;
+    }
+
+    const available = getAvailableStock(fruitId);
+    const current = cart[fruitId] || 0;
+
+    if (current >= available) {
+      const fruit = FRUIT_MAP[fruitId];
+      notify('Out of Stock', `${fruit?.name || 'This fruit'} only has ${available} available.`);
+      return;
+    }
+
     setCart((prev) => ({ ...prev, [fruitId]: (prev[fruitId] || 0) + 1 }));
+  };
 
   const removeFromCart = (fruitId) =>
     setCart((prev) => {
@@ -97,29 +123,72 @@ export default function FruitShopScreen({ navigation }) {
     });
 
   const cartItems = FRUITS.filter((f) => cart[f.id] > 0).map((f) => ({
-    ...f, qty: cart[f.id], subtotal: cart[f.id] * f.price,
+    ...f, qty: cart[f.id], subtotal: cart[f.id] * f.price, available: getAvailableStock(f.id),
   }));
 
   const cartTotal = cartItems.reduce((sum, i) => sum + i.subtotal, 0);
   const cartCount = Object.values(cart).reduce((sum, v) => sum + v, 0);
 
   const handlePlaceOrder = async () => {
+    if (!canOrder) {
+      notify('Read Only', 'Inventory checker cannot place orders.');
+      return;
+    }
+
     if (cartItems.length === 0) {
       notify('Empty Cart', 'Add some fruits before ordering!');
       return;
     }
     setOrdering(true);
     try {
-      await addDoc(collection(db, 'orders'), {
-        userId: user.uid,
-        userEmail: user.email,
-        userName: user.name,
-        items: cartItems.map(({ id, name, emoji, qty, price, subtotal }) => ({
-          fruitId: id, name, emoji, qty, price, subtotal,
-        })),
-        total: cartTotal,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
+      await runTransaction(db, async (transaction) => {
+        const inventorySnapshot = {};
+
+        for (const item of cartItems) {
+          const fruitRef = doc(db, INVENTORY_COLLECTION, item.id);
+          const fruitSnap = await transaction.get(fruitRef);
+          const available = fruitSnap.exists()
+            ? Number(fruitSnap.data()?.stock ?? 0)
+            : Number(FRUIT_MAP[item.id]?.defaultStock ?? 0);
+
+          if (available < item.qty) {
+            throw new Error(`${item.name} only has ${available} left.`);
+          }
+
+          inventorySnapshot[item.id] = {
+            ref: fruitRef,
+            available,
+            next: available - item.qty,
+          };
+        }
+
+        const orderRef = doc(collection(db, 'orders'));
+        transaction.set(orderRef, {
+          userId: user.uid,
+          userEmail: user.email,
+          userName: user.name,
+          items: cartItems.map(({ id, name, emoji, qty, price, subtotal }) => ({
+            fruitId: id, name, emoji, qty, price, subtotal,
+          })),
+          total: cartTotal,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        });
+
+        Object.values(inventorySnapshot).forEach(({ ref, available, next }) => {
+          transaction.set(ref, {
+            fruitId: ref.id,
+            name: FRUIT_MAP[ref.id]?.name || ref.id,
+            emoji: FRUIT_MAP[ref.id]?.emoji || '🍎',
+            price: FRUIT_MAP[ref.id]?.price ?? 0,
+            unit: FRUIT_MAP[ref.id]?.unit || '',
+            description: FRUIT_MAP[ref.id]?.description || '',
+            stock: next,
+            updatedAt: new Date().toISOString(),
+            updatedBy: user.uid,
+            previousStock: available,
+          }, { merge: true });
+        });
       });
       setCart({});
       setCartVisible(false);
@@ -136,6 +205,7 @@ export default function FruitShopScreen({ navigation }) {
 
   const featuredFruit = FRUITS[featuredIndex];
   const featuredQty = cart[featuredFruit.id] || 0;
+  const featuredAvailable = getAvailableStock(featuredFruit.id);
 
   const handlePrevFruit = () => {
     setFeaturedIndex((prev) => (prev === 0 ? FRUITS.length - 1 : prev - 1));
@@ -147,17 +217,26 @@ export default function FruitShopScreen({ navigation }) {
 
   const renderFruit = useCallback(({ item }) => {
     const qty = cart[item.id] || 0;
+    const available = getAvailableStock(item.id);
     return (
       <View style={styles.fruitCard}>
         <View style={styles.fruitEmojiWrap}>
           <Text style={styles.fruitEmoji}>{item.emoji}</Text>
         </View>
         <Text style={styles.fruitName}>{item.name}</Text>
-        <Text style={styles.fruitDesc} numberOfLines={1}>{item.description}</Text>
-        <Text style={styles.fruitUnit}>{item.unit}</Text>
+        {item.unit ? <Text style={styles.fruitUnit}>{item.unit}</Text> : null}
         <Text style={styles.fruitPrice}>₱{item.price}</Text>
+        <Text style={styles.stockText}>Available: {available}</Text>
 
-        {qty === 0 ? (
+        {qty === 0 && available === 0 ? (
+          <View style={styles.soldOutBadge}>
+            <Text style={styles.soldOutText}>Sold out</Text>
+          </View>
+        ) : !canOrder ? (
+          <View style={styles.inventoryStockBadge}>
+            <Text style={styles.inventoryStockBadgeText}>{available} available</Text>
+          </View>
+        ) : qty === 0 ? (
           <Pressable
             style={({ pressed }) => [styles.addBtn, pressed && styles.addBtnPressed]}
             onPress={() => addToCart(item.id)}
@@ -170,22 +249,43 @@ export default function FruitShopScreen({ navigation }) {
               <Text style={styles.qtyBtnText}>−</Text>
             </Pressable>
             <Text style={styles.qtyNum}>{qty}</Text>
-            <Pressable style={styles.qtyBtn} onPress={() => addToCart(item.id)}>
+            <Pressable style={[styles.qtyBtn, qty >= available && styles.qtyBtnDisabled]} onPress={() => addToCart(item.id)} disabled={qty >= available}>
               <Text style={styles.qtyBtnText}>+</Text>
             </Pressable>
           </View>
         )}
       </View>
     );
-  }, [cart]);
+  }, [cart, getAvailableStock]);
 
   return (
     <View style={styles.root}>
-      <SideMenu
+      <Sidebar
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
-        navigation={navigation}
-        onLogout={handleLogout}
+        isAdmin={false}
+        role={userRole}
+        userName={user?.name || 'Guest'}
+        onHome={() => {
+          setMenuOpen(false);
+          navigation.navigate('Home');
+        }}
+        onShop={() => {
+          setMenuOpen(false);
+          navigation.navigate('FruitShop');
+        }}
+        onMyOrders={() => {
+          setMenuOpen(false);
+          navigation.navigate('UserOrders');
+        }}
+        onAdminOrders={() => {}}
+        onAdminUsers={() => {}}
+        onInventoryDashboard={() => {
+          setMenuOpen(false);
+          navigation.navigate('InventoryDashboard');
+        }}
+        onUsersManagement={() => {}}
+        onUsersManagementModal={() => {}}
       />
 
       {/* TOP BAR */}
@@ -200,14 +300,16 @@ export default function FruitShopScreen({ navigation }) {
           <Text style={styles.pageTitle}>Fusion Fruit Studio!</Text>
         </View>
 
-        <Pressable style={styles.cartButton} onPress={() => setCartVisible(true)}>
-          <Text style={styles.cartEmoji}>FC</Text>
-          {cartCount > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cartCount}</Text>
-            </View>
-          )}
-        </Pressable>
+        {canOrder ? (
+          <Pressable style={styles.cartButton} onPress={() => setCartVisible(true)}>
+            <Text style={styles.cartEmoji}>FC</Text>
+            {cartCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartCount}</Text>
+              </View>
+            )}
+          </Pressable>
+        ) : null}
       </View>
 
       {/* FEATURED FRUIT SECTION */}
@@ -243,10 +345,20 @@ export default function FruitShopScreen({ navigation }) {
           <Text style={styles.featuredName}>
             {featuredFruit.name} (Size: Large)
           </Text>
+          <View style={styles.featuredStockWrap}>
+            <View style={styles.featuredStockPill}>
+              <Text style={styles.featuredStockLabel}>Available</Text>
+              <Text style={styles.featuredStockValue}>{featuredAvailable}</Text>
+            </View>
+          </View>
 
           {/* FEATURED FRUIT BUTTONS */}
           <View style={styles.featuredButtonsRow}>
-            {featuredQty === 0 ? (
+            {canOrder && featuredQty === 0 && featuredAvailable === 0 ? (
+              <View style={styles.soldOutBadge}>
+                <Text style={styles.soldOutText}>Sold out</Text>
+              </View>
+            ) : canOrder && featuredQty === 0 ? (
               <Pressable
                 style={({ pressed }) => [styles.addFeaturedBtn, pressed && styles.addFeaturedBtnPressed]}
                 onPress={() => addToCart(featuredFruit.id)}
@@ -255,7 +367,7 @@ export default function FruitShopScreen({ navigation }) {
                   Add {featuredFruit.name} to Cart →
                 </Text>
               </Pressable>
-            ) : (
+            ) : canOrder ? (
               <View style={styles.featuredQtyRow}>
                 <Pressable
                   style={styles.featuredQtyBtn}
@@ -265,21 +377,24 @@ export default function FruitShopScreen({ navigation }) {
                 </Pressable>
                 <Text style={styles.featuredQtyNum}>{featuredQty}</Text>
                 <Pressable
-                  style={styles.featuredQtyBtn}
+                  style={[styles.featuredQtyBtn, featuredQty >= featuredAvailable && styles.qtyBtnDisabled]}
                   onPress={() => addToCart(featuredFruit.id)}
+                  disabled={featuredQty >= featuredAvailable}
                 >
                   <Text style={styles.featuredQtyBtnText}>+</Text>
                 </Pressable>
               </View>
-            )}
+            ) : null}
           </View>
 
-          <Pressable
-            style={({ pressed }) => [styles.checkCartBtn, pressed && styles.checkCartBtnPressed]}
-            onPress={() => setCartVisible(true)}
-          >
-            <Text style={styles.checkCartBtnText}>Check Cart</Text>
-          </Pressable>
+          {canOrder ? (
+            <Pressable
+              style={({ pressed }) => [styles.checkCartBtn, pressed && styles.checkCartBtnPressed]}
+              onPress={() => setCartVisible(true)}
+            >
+              <Text style={styles.checkCartBtnText}>Check Cart</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         {/* FRUIT LIST SECTION */}
@@ -298,14 +413,14 @@ export default function FruitShopScreen({ navigation }) {
       </ScrollView>
 
       {/* CART FAB */}
-      {cartCount > 0 && (
+      {canOrder && cartCount > 0 && (
         <Pressable style={styles.fab} onPress={() => setCartVisible(true)}>
           <Text style={styles.fabText}>🛍️  View Cart  ·  ₱{cartTotal}</Text>
         </Pressable>
       )}
 
       {/* CART MODAL */}
-      <Modal visible={cartVisible} transparent animationType="slide" onRequestClose={() => setCartVisible(false)}>
+      <Modal visible={canOrder && cartVisible} transparent animationType="slide" onRequestClose={() => setCartVisible(false)}>
         <Pressable style={styles.modalBg} onPress={() => setCartVisible(false)} />
         <View style={styles.modalSheet}>
           <View style={styles.handle} />
@@ -329,14 +444,14 @@ export default function FruitShopScreen({ navigation }) {
                   <Text style={styles.cartItemEmoji}>{item.emoji}</Text>
                   <View style={styles.cartItemInfo}>
                     <Text style={styles.cartItemName}>{item.name}</Text>
-                    <Text style={styles.cartItemUnit}>{item.unit}</Text>
+                    {item.unit ? <Text style={styles.cartItemUnit}>{item.unit}</Text> : null}
                   </View>
                   <View style={styles.cartQtyRow}>
                     <Pressable style={styles.cartQtyBtn} onPress={() => removeFromCart(item.id)}>
                       <Text style={styles.cartQtyBtnText}>−</Text>
                     </Pressable>
                     <Text style={styles.cartQtyNum}>{item.qty}</Text>
-                    <Pressable style={styles.cartQtyBtn} onPress={() => addToCart(item.id)}>
+                    <Pressable style={[styles.cartQtyBtn, item.qty >= item.available && styles.qtyBtnDisabled]} onPress={() => addToCart(item.id)} disabled={item.qty >= item.available}>
                       <Text style={styles.cartQtyBtnText}>+</Text>
                     </Pressable>
                   </View>
@@ -371,40 +486,6 @@ export default function FruitShopScreen({ navigation }) {
     </View>
   );
 }
-
-// ─── Menu Styles ─────────────────────────────────────────────────────────────
-const menu = StyleSheet.create({
-  overlay: {
-    position: 'absolute', left: 270, right: 0, top: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.35)', zIndex: 9,
-  },
-  sidebar: {
-    position: 'absolute', top: 0, left: 0, bottom: 0, width: 270,
-    backgroundColor: '#fff', paddingTop: Platform.OS === 'ios' ? 56 : 32,
-    paddingHorizontal: 20, paddingBottom: 32, zIndex: 10,
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 15,
-  },
-  brand: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  brandEmoji: { fontSize: 28, marginRight: 10 },
-  brandName: { fontSize: 20, fontWeight: '800', color: PINK },
-  divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 16 },
-  item: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, marginBottom: 4,
-  },
-  itemPressed: { backgroundColor: '#FFF0F7' },
-  itemIcon: { fontSize: 18, marginRight: 14, width: 24 },
-  itemLabel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
-  spacer: { flex: 1 },
-  logoutBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 14, paddingHorizontal: 12,
-    backgroundColor: '#FFF0F7', borderRadius: 12,
-  },
-  logoutPressed: { backgroundColor: '#FCE7F3' },
-  logoutIcon: { fontSize: 18, marginRight: 14 },
-  logoutText: { fontSize: 15, fontWeight: '700', color: PINK },
-});
 
 // ─── Screen Styles ────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
@@ -576,6 +657,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   cartBadgeText: { color: '#1a1a1a', fontSize: 10, fontWeight: '800' },
+  readOnlyPill: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  readOnlyPillText: {
+    color: '#047857',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  inventoryStockBadge: {
+    marginTop: 6,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  inventoryStockBadgeText: {
+    color: '#047857',
+    fontWeight: '900',
+    fontSize: 12,
+  },
 
   listContent: { paddingHorizontal: 8, paddingBottom: 20 },
   row: { justifyContent: 'space-between', marginBottom: 12 },
@@ -592,9 +696,14 @@ const styles = StyleSheet.create({
   },
   fruitEmoji: { fontSize: 32 },
   fruitName: { fontWeight: '800', fontSize: 13, color: '#1a1a1a', marginBottom: 2 },
-  fruitDesc: { fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginBottom: 2 },
   fruitUnit: { fontSize: 10, color: '#D1D5DB', marginBottom: 4 },
   fruitPrice: { fontWeight: '900', color: '#dd2a7b', fontSize: 15, marginBottom: 10 },
+  stockText: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginBottom: 8,
+    fontWeight: '700',
+  },
 
   addBtn: {
     backgroundColor: '#dd2a7b', paddingVertical: 8, paddingHorizontal: 20,
@@ -611,6 +720,91 @@ const styles = StyleSheet.create({
   qtyBtn: { padding: 8 },
   qtyBtnText: { fontSize: 18, color: '#dd2a7b', fontWeight: '700' },
   qtyNum: { fontWeight: '800', fontSize: 15, color: '#1a1a1a' },
+  qtyBtnDisabled: { opacity: 0.45 },
+
+  featuredStockWrap: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  featuredStockPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#DCFCE7',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  featuredStockLabel: {
+    color: '#047857',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  featuredStockValue: {
+    color: '#065F46',
+    fontSize: 20,
+    fontWeight: '900',
+    minWidth: 24,
+    textAlign: 'center',
+  },
+  featuredStockHint: {
+    marginTop: 8,
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  soldOutBadge: {
+    alignSelf: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  soldOutText: {
+    color: '#B91C1C',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  inventoryModeCard: {
+    width: '100%',
+    backgroundColor: '#FFF1F7',
+    borderWidth: 1,
+    borderColor: '#F9A8D4',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  inventoryModeTitle: {
+    color: '#DB2777',
+    fontWeight: '900',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  inventoryModeText: {
+    color: '#9D174D',
+    fontWeight: '600',
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  inventoryStatusPill: {
+    alignSelf: 'center',
+    marginTop: 2,
+    backgroundColor: '#FFF1F7',
+    borderWidth: 1,
+    borderColor: '#F9A8D4',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  inventoryStatusPillText: {
+    color: '#DB2777',
+    fontWeight: '800',
+    fontSize: 12,
+    textAlign: 'center',
+  },
 
   fab: {
     position: 'absolute', bottom: 24, left: 24, right: 24,

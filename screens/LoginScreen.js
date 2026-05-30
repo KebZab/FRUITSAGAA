@@ -224,7 +224,7 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
-      await promptGoogleLogin({ useProxy: false });
+      await promptGoogleLogin({ useProxy: true });
     } catch (error) {
       Alert.alert('Google Authentication failed', error.message);
     }
