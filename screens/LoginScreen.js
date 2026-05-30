@@ -20,6 +20,7 @@ import { AuthContext } from '../contexts/AuthContext';
 WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_WEB_CLIENT_ID = '132571887694-v85c2lialak4j7vq10ur86se9imj4u1k.apps.googleusercontent.com';
+const GOOGLE_ANDROID_CLIENT_ID = '132571887694-9bt9sfqvgcc8q0l07lb142lu8plqlri.apps.googleusercontent.com';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -59,9 +60,8 @@ export default function LoginScreen({ navigation }) {
 
   const { signIn } = useContext(AuthContext);
   const [googleRequest, googleResponse, promptGoogleLogin] = Google.useAuthRequest({
-    expoClientId: GOOGLE_WEB_CLIENT_ID,
     webClientId: GOOGLE_WEB_CLIENT_ID,
-    androidClientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     iosClientId: GOOGLE_WEB_CLIENT_ID,
   });
 
@@ -224,7 +224,7 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
-      await promptGoogleLogin({ useProxy: true });
+      await promptGoogleLogin({ useProxy: false });
     } catch (error) {
       Alert.alert('Google Authentication failed', error.message);
     }
