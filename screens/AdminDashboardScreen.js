@@ -88,13 +88,38 @@ function AdminOrderCard({ order, onUpdateStatus }) {
         <View style={s.expandedSection}>
           <View style={s.divider} />
 
+          {/* Customer Info */}
+          <Text style={s.sectionLabel}>Customer Information</Text>
+          <View style={s.infoRow}>
+            <Text style={s.infoLabel}>Name:</Text>
+            <Text style={s.infoValue}>{order.userName || '—'}</Text>
+          </View>
+          <View style={s.infoRow}>
+            <Text style={s.infoLabel}>Email:</Text>
+            <Text style={s.infoValue}>{order.userEmail || '—'}</Text>
+          </View>
+
+          {/* Delivery Address */}
+          {order.deliveryAddress && (
+            <>
+              <Text style={s.sectionLabel}>Delivery Address</Text>
+              <View style={s.addressBox}>
+                <Text style={s.addressName}>{order.deliveryAddress.fullName}</Text>
+                <Text style={s.addressPhone}>📞 {order.deliveryAddress.phoneNumber}</Text>
+                <Text style={s.addressText}>{order.deliveryAddress.streetAddress}</Text>
+                <Text style={s.addressText}>{order.deliveryAddress.barangay}, {order.deliveryAddress.city}</Text>
+                <Text style={s.addressText}>{order.deliveryAddress.province} {order.deliveryAddress.postalCode}</Text>
+              </View>
+            </>
+          )}
+
           {/* Items */}
           <Text style={s.sectionLabel}>Items</Text>
           {(order.items || []).map((item, i) => (
             <View key={i} style={s.itemRow}>
               <Text style={s.itemEmoji}>{item.emoji}</Text>
-              <Text style={s.itemName}>{item.name}</Text>
-              <Text style={s.itemQty}>×{item.qty}</Text>
+              <Text style={s.itemName}>{item.fruitName || item.name}</Text>
+              <Text style={s.itemQty}>×{item.quantity || item.qty}</Text>
               <Text style={s.itemSubtotal}>₱{item.subtotal}</Text>
             </View>
           ))}
@@ -375,6 +400,27 @@ const s = StyleSheet.create({
   expandedSection: { paddingHorizontal: 14, paddingBottom: 14 },
   divider: { height: 1, backgroundColor: '#f5f5f5', marginBottom: 12 },
   sectionLabel: { fontSize: 12, fontWeight: '700', color: '#888', marginBottom: 8 },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f9f9f9',
+  },
+  infoLabel: { fontSize: 12, fontWeight: '600', color: '#888' },
+  infoValue: { fontSize: 12, color: '#333', flex: 1, textAlign: 'right' },
+  addressBox: {
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: PINK,
+    marginBottom: 12,
+  },
+  addressName: { fontSize: 13, fontWeight: '700', color: '#1a1a1a', marginBottom: 6 },
+  addressPhone: { fontSize: 12, color: '#666', marginBottom: 4 },
+  addressText: { fontSize: 12, color: '#666', lineHeight: 16, marginVertical: 2 },
   itemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   itemEmoji: { fontSize: 18, marginRight: 8 },
   itemName: { flex: 1, fontSize: 13, color: '#333' },

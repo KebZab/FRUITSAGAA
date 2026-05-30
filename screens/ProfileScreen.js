@@ -161,6 +161,22 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
+        {/* ADDRESS MANAGEMENT */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Delivery Addresses</Text>
+          <Pressable
+            style={({ pressed }) => [styles.addressBtn, pressed && styles.addressBtnPressed]}
+            onPress={() => navigation.navigate('AddressManagement')}
+          >
+            <Text style={styles.addressIcon}>📍</Text>
+            <View style={styles.addressBtnText}>
+              <Text style={styles.addressBtnLabel}>Manage Addresses</Text>
+              <Text style={styles.addressBtnSubtext}>Add, edit, or delete delivery addresses</Text>
+            </View>
+            <Text style={styles.addressBtnArrow}>›</Text>
+          </Pressable>
+        </View>
+
         {/* SIGN OUT */}
         <View style={styles.section}>
           <Pressable
@@ -285,6 +301,19 @@ const styles = StyleSheet.create({
   actionCardPressed: { backgroundColor: '#FFF0F7' },
   actionEmoji: { fontSize: 26, marginBottom: 6 },
   actionLabel: { fontSize: 12, fontWeight: '700', color: '#1a1a1a' },
+
+  addressBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', padding: 16, borderRadius: 16,
+    borderWidth: 1, borderColor: '#F3F4F6',
+    shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
+  },
+  addressBtnPressed: { backgroundColor: '#F9FAFB' },
+  addressIcon: { fontSize: 20, marginRight: 12 },
+  addressBtnText: { flex: 1 },
+  addressBtnLabel: { fontSize: 14, fontWeight: '700', color: '#1a1a1a', marginBottom: 2 },
+  addressBtnSubtext: { fontSize: 12, color: '#9CA3AF' },
+  addressBtnArrow: { fontSize: 18, color: PINK, fontWeight: '700' },
 
   signOutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
