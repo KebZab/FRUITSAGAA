@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "jsx": "react",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "isolatedModules": true
+  },
+  "exclude": ["node_modules", "dist", "build"]
+}
