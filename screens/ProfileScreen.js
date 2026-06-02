@@ -1,5 +1,5 @@
 // screens/ProfileScreen.js
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,27 @@ import {
   Pressable,
   ScrollView,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import { AuthContext } from '../contexts/AuthContext';
+import { db } from '../firebaseConfig';
+import AddressFormModal from '../components/AddressFormModal';
 
 const PINK = '#dd2a7b';
+
+function formatAddress(address) {
+  const lineTwoParts = [address.city, address.province, address.postalCode].filter(Boolean);
+  const lines = [
+    address.addressLine1,
+    address.addressLine2,
+    lineTwoParts.join(', '),
+    address.instructions,
+  ].filter((item) => item && item.trim());
+
+  return lines.join('\n');
+}
 
 // ─── Side Menu ───────────────────────────────────────────────────────────────
 function SideMenu({ visible, onClose, navigation, onLogout }) {
@@ -72,10 +89,80 @@ function InfoRow({ icon, label, value }) {
 export default function ProfileScreen({ navigation }) {
   const { user, signOut } = useContext(AuthContext);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addresses, setAddresses] = useState([]);
+  const [defaultAddressId, setDefaultAddressId] = useState(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [savingDefaultId, setSavingDefaultId] = useState(null);
+  const [deletingAddressId, setDeletingAddressId] = useState(null);
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
 
   const initials = user?.name
     ? user.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
     : '?';
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    let mounted = true;
+
+    const loadAddresses = async () => {
+      setLoadingAddresses(true);
+      try {
+        const userRef = doc(db, 'users_basic', user.uid);
+        const [userSnap, addressesSnap] = await Promise.all([
+          getDoc(userRef),
+          getDocs(collection(db, 'users_basic', user.uid, 'addresses')),
+        ]);
+
+        if (!mounted) return;
+
+        setDefaultAddressId(userSnap.exists() ? userSnap.data()?.defaultAddressId || null : null);
+        setAddresses(
+          addressesSnap.docs
+            .map((item) => ({ id: item.id, ...item.data() }))
+            .sort((a, b) => {
+              if (a.label && b.label) return a.label.localeCompare(b.label);
+              return (b.createdAt || '').localeCompare(a.createdAt || '');
+            })
+        );
+      } catch (error) {
+        console.log('loadAddresses error:', error);
+      } finally {
+        if (mounted) setLoadingAddresses(false);
+      }
+    };
+
+    loadAddresses();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.uid]);
+
+  const reloadAddresses = async () => {
+    if (!user?.uid) return;
+
+    try {
+      const userRef = doc(db, 'users_basic', user.uid);
+      const [userSnap, addressesSnap] = await Promise.all([
+        getDoc(userRef),
+        getDocs(collection(db, 'users_basic', user.uid, 'addresses')),
+      ]);
+
+      setDefaultAddressId(userSnap.exists() ? userSnap.data()?.defaultAddressId || null : null);
+      setAddresses(
+        addressesSnap.docs
+          .map((item) => ({ id: item.id, ...item.data() }))
+          .sort((a, b) => {
+            if (a.label && b.label) return a.label.localeCompare(b.label);
+            return (b.createdAt || '').localeCompare(a.createdAt || '');
+          })
+      );
+    } catch (error) {
+      console.log('reloadAddresses error:', error);
+    }
+  };
 
   const handleLogout = async () => {
     setMenuOpen(false);
@@ -83,8 +170,71 @@ export default function ProfileScreen({ navigation }) {
     // Navigator will automatically switch to Login screen when user becomes null
   };
 
+  const handleAddressSaved = async () => {
+    await reloadAddresses();
+  };
+
+  const handleSetDefault = async (addressId) => {
+    if (!user?.uid) return;
+    setSavingDefaultId(addressId);
+    try {
+      await updateDoc(doc(db, 'users_basic', user.uid), { defaultAddressId: addressId });
+      setDefaultAddressId(addressId);
+    } catch (error) {
+      Alert.alert('Could not set default', error.message);
+    } finally {
+      setSavingDefaultId(null);
+    }
+  };
+
+  const handleDeleteAddress = (address) => {
+    if (!user?.uid) return;
+
+    const confirmDelete = async () => {
+      setDeletingAddressId(address.id);
+      try {
+        await deleteDoc(doc(db, 'users_basic', user.uid, 'addresses', address.id));
+
+        const nextAddresses = addresses.filter((item) => item.id !== address.id);
+        const nextDefault = defaultAddressId === address.id ? nextAddresses[0]?.id || null : defaultAddressId;
+
+        await updateDoc(doc(db, 'users_basic', user.uid), { defaultAddressId: nextDefault });
+        setDefaultAddressId(nextDefault);
+        setAddresses(nextAddresses);
+      } catch (error) {
+        Alert.alert('Delete failed', error.message);
+      } finally {
+        setDeletingAddressId(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete ${address.label || 'this address'}?`)) {
+        confirmDelete();
+      }
+      return;
+    }
+
+    Alert.alert('Delete address?', `Remove ${address.label || 'this address'} from saved addresses?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: confirmDelete },
+    ]);
+  };
+
   return (
     <View style={styles.root}>
+      <AddressFormModal
+        visible={addressModalVisible}
+        onClose={() => {
+          setAddressModalVisible(false);
+          setEditingAddress(null);
+        }}
+        onSaved={handleAddressSaved}
+        userId={user?.uid}
+        editAddress={editingAddress}
+        defaultAddressId={defaultAddressId}
+      />
+
       <SideMenu
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -130,6 +280,99 @@ export default function ProfileScreen({ navigation }) {
             <InfoRow icon="✉️"  label="Email"     value={user?.email} />
             <View style={styles.cardDivider} />
             <InfoRow icon="🆔" label="User ID"   value={user?.uid} />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Delivery Addresses</Text>
+            <Pressable
+              style={({ pressed }) => [styles.addAddressBtn, pressed && styles.addAddressBtnPressed]}
+              onPress={() => {
+                setEditingAddress(null);
+                setAddressModalVisible(true);
+              }}
+            >
+              <Text style={styles.addAddressBtnText}>+ Add</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.card}>
+            {loadingAddresses ? (
+              <View style={styles.addressLoading}>
+                <ActivityIndicator color={PINK} />
+                <Text style={styles.addressLoadingText}>Loading addresses…</Text>
+              </View>
+            ) : addresses.length === 0 ? (
+              <View style={styles.emptyAddressState}>
+                <Text style={styles.emptyAddressEmoji}>📍</Text>
+                <Text style={styles.emptyAddressTitle}>No saved addresses yet</Text>
+                <Text style={styles.emptyAddressText}>
+                  Add one here or during checkout so you can reuse it next time.
+                </Text>
+                <Pressable
+                  style={styles.addFirstAddressBtn}
+                  onPress={() => {
+                    setEditingAddress(null);
+                    setAddressModalVisible(true);
+                  }}
+                >
+                  <Text style={styles.addFirstAddressBtnText}>Add your first address</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.addressList}>
+                {addresses.map((address) => {
+                  const isDefault = address.id === defaultAddressId;
+                  const isBusy = savingDefaultId === address.id || deletingAddressId === address.id;
+
+                  return (
+                    <View key={address.id} style={styles.addressCard}>
+                      <View style={styles.addressCardTopRow}>
+                        <View style={styles.addressLabelRow}>
+                          <Text style={styles.addressLabel}>{address.label || 'Saved address'}</Text>
+                          {isDefault ? (
+                            <View style={styles.defaultBadge}>
+                              <Text style={styles.defaultBadgeText}>Default</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <View style={styles.addressActionRow}>
+                          {!isDefault ? (
+                            <Pressable
+                              onPress={() => handleSetDefault(address.id)}
+                              disabled={isBusy}
+                              style={({ pressed }) => [styles.addressActionBtn, pressed && styles.addressActionBtnPressed]}
+                            >
+                              <Text style={styles.addressActionText}>Set default</Text>
+                            </Pressable>
+                          ) : null}
+                          <Pressable
+                            onPress={() => {
+                              setEditingAddress(address);
+                              setAddressModalVisible(true);
+                            }}
+                            style={({ pressed }) => [styles.addressActionBtn, pressed && styles.addressActionBtnPressed]}
+                          >
+                            <Text style={styles.addressActionText}>Edit</Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => handleDeleteAddress(address)}
+                            disabled={isBusy}
+                            style={({ pressed }) => [styles.addressActionBtn, pressed && styles.addressActionBtnPressed]}
+                          >
+                            <Text style={styles.addressDeleteText}>
+                              {deletingAddressId === address.id ? 'Removing…' : 'Delete'}
+                            </Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                      <Text style={styles.addressSummary}>{formatAddress(address)}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
         </View>
 
@@ -253,10 +496,16 @@ const styles = StyleSheet.create({
   memberBadgeText: { fontSize: 12, color: '#16A34A', fontWeight: '600' },
 
   section: { marginBottom: 20 },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 13, fontWeight: '700', color: '#9CA3AF',
     textTransform: 'uppercase', letterSpacing: 0.8,
-    marginBottom: 10, marginLeft: 4,
+    marginLeft: 4,
   },
 
   card: {
@@ -264,6 +513,75 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
   },
   cardDivider: { height: 1, backgroundColor: '#F3F4F6', marginLeft: 52 },
+
+  addAddressBtn: {
+    backgroundColor: '#FFF0F7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  addAddressBtnPressed: { opacity: 0.8 },
+  addAddressBtnText: { color: PINK, fontWeight: '800', fontSize: 12 },
+
+  addressLoading: { alignItems: 'center', paddingVertical: 14 },
+  addressLoadingText: { marginTop: 8, color: '#6B7280', fontSize: 12 },
+  emptyAddressState: { alignItems: 'center', paddingVertical: 14 },
+  emptyAddressEmoji: { fontSize: 32, marginBottom: 8 },
+  emptyAddressTitle: { fontSize: 15, fontWeight: '800', color: '#1a1a1a' },
+  emptyAddressText: { fontSize: 12, color: '#6B7280', textAlign: 'center', marginTop: 6, marginBottom: 12 },
+  addFirstAddressBtn: {
+    backgroundColor: PINK,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  addFirstAddressBtnText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  addressList: { gap: 12 },
+  addressCard: {
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    borderRadius: 18,
+    padding: 14,
+    backgroundColor: '#FCFCFD',
+  },
+  addressCardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  addressLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    flex: 1,
+  },
+  addressLabel: { fontSize: 15, fontWeight: '800', color: '#111827' },
+  defaultBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  defaultBadgeText: { color: '#15803D', fontSize: 11, fontWeight: '800' },
+  addressActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
+  addressActionBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  addressActionBtnPressed: { opacity: 0.8 },
+  addressActionText: { fontSize: 11, fontWeight: '700', color: '#374151' },
+  addressDeleteText: { fontSize: 11, fontWeight: '700', color: '#DC2626' },
+  addressSummary: { marginTop: 10, fontSize: 12, color: '#4B5563', lineHeight: 18 },
 
   infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
   infoIconWrap: {

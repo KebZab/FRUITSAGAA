@@ -28,12 +28,32 @@ const NEXT_STATUS = {
 
 const ALL_STATUSES = Object.keys(STATUS_CONFIG);
 
+function formatDeliveryAddress(address) {
+  if (!address) return '';
+
+  const lines = [];
+
+  if (address.label) lines.push(`Label: ${address.label}`);
+  if (address.recipientName) lines.push(`Recipient: ${address.recipientName}`);
+  if (address.phone) lines.push(`Phone: ${address.phone}`);
+  if (address.addressLine1) lines.push(`Block / Street: ${address.addressLine1}`);
+  if (address.addressLine2) lines.push(`Brgy / Landmark: ${address.addressLine2}`);
+
+  const cityParts = [address.city, address.province].filter(Boolean).join(', ');
+  if (cityParts) lines.push(`City / Province: ${cityParts}`);
+  if (address.postalCode) lines.push(`Postal Code: ${address.postalCode}`);
+  if (address.instructions) lines.push(`Instructions: ${address.instructions}`);
+
+  return lines.join('\n');
+}
+
 // ─── Order Card ───────────────────────────────────────────────────────────────
 function AdminOrderCard({ order, onUpdateStatus }) {
   const [expanded, setExpanded] = useState(false);
   const [updating, setUpdating] = useState(false);
   const statusCfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
   const nextStatus = NEXT_STATUS[order.status];
+  const deliveryAddress = order.deliveryAddress || order.deliveryAddressSnapshot || null;
 
   const date = order.createdAt
     ? new Date(order.createdAt).toLocaleDateString('en-PH', {
@@ -87,6 +107,22 @@ function AdminOrderCard({ order, onUpdateStatus }) {
       {expanded && (
         <View style={s.expandedSection}>
           <View style={s.divider} />
+
+          {deliveryAddress ? (
+            <View style={s.addressCard}>
+              <View style={s.addressCardHeader}>
+                <Text style={s.addressTitle}>Delivery Address</Text>
+              </View>
+              <Text style={s.addressText}>{formatDeliveryAddress(deliveryAddress)}</Text>
+            </View>
+          ) : (
+            <View style={s.addressCard}>
+              <View style={s.addressCardHeader}>
+                <Text style={s.addressTitle}>Delivery Address</Text>
+              </View>
+              <Text style={s.addressEmptyText}>No delivery address saved on this order.</Text>
+            </View>
+          )}
 
           {/* Items */}
           <Text style={s.sectionLabel}>Items</Text>
@@ -374,6 +410,23 @@ const s = StyleSheet.create({
 
   expandedSection: { paddingHorizontal: 14, paddingBottom: 14 },
   divider: { height: 1, backgroundColor: '#f5f5f5', marginBottom: 12 },
+  addressCard: {
+    backgroundColor: '#FFF8FC',
+    borderWidth: 1,
+    borderColor: '#FCE7F3',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  addressCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  addressTitle: { fontSize: 12, fontWeight: '800', color: PINK },
+  addressText: { fontSize: 12, color: '#4B5563', lineHeight: 18 },
+  addressEmptyText: { fontSize: 12, color: '#9CA3AF' },
   sectionLabel: { fontSize: 12, fontWeight: '700', color: '#888', marginBottom: 8 },
   itemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   itemEmoji: { fontSize: 18, marginRight: 8 },

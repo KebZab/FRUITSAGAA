@@ -22,6 +22,25 @@ const STATUS_STEPS = ['pending', 'confirmed', 'preparing', 'ready', 'delivered']
 
 const PINK = '#dd2a7b';
 
+function formatDeliveryAddress(address) {
+  if (!address) return '';
+
+  const lines = [];
+
+  if (address.label) lines.push(`Label: ${address.label}`);
+  if (address.recipientName) lines.push(`Recipient: ${address.recipientName}`);
+  if (address.phone) lines.push(`Phone: ${address.phone}`);
+  if (address.addressLine1) lines.push(`Block / Street: ${address.addressLine1}`);
+  if (address.addressLine2) lines.push(`Brgy / Landmark: ${address.addressLine2}`);
+
+  const cityParts = [address.city, address.province].filter(Boolean).join(', ');
+  if (cityParts) lines.push(`City / Province: ${cityParts}`);
+  if (address.postalCode) lines.push(`Postal Code: ${address.postalCode}`);
+  if (address.instructions) lines.push(`Instructions: ${address.instructions}`);
+
+  return lines.join('\n');
+}
+
 // ─── Side Menu ────────────────────────────────────────────────────────────────
 function SideMenu({ visible, onClose, navigation, logout }) {
   if (!visible) return null;
@@ -105,6 +124,7 @@ function StatusTracker({ status }) {
 function OrderCard({ order }) {
   const [expanded, setExpanded] = useState(false);
   const statusCfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+  const deliveryAddress = order.deliveryAddress || order.deliveryAddressSnapshot || null;
 
   const date = order.createdAt
     ? new Date(order.createdAt).toLocaleDateString('en-PH', {
@@ -142,6 +162,14 @@ function OrderCard({ order }) {
       {expanded && (
         <View style={card.expanded}>
           <View style={card.divider} />
+
+          {deliveryAddress ? (
+            <View style={card.addressBox}>
+              <Text style={card.addressTitle}>Delivery Address</Text>
+              <Text style={card.addressText}>{formatDeliveryAddress(deliveryAddress)}</Text>
+            </View>
+          ) : null}
+
           <Text style={card.itemsTitle}>Items Ordered</Text>
           {(order.items || []).map((item, i) => (
             <View key={i} style={card.itemRow}>
@@ -354,6 +382,16 @@ const card = StyleSheet.create({
 
   expanded: { paddingHorizontal: 16, paddingBottom: 16 },
   divider: { height: 1, backgroundColor: '#F3F4F6', marginBottom: 12 },
+  addressBox: {
+    backgroundColor: '#FFF8FC',
+    borderWidth: 1,
+    borderColor: '#FCE7F3',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+  },
+  addressTitle: { fontSize: 12, fontWeight: '800', color: PINK, marginBottom: 6 },
+  addressText: { fontSize: 12, color: '#4B5563', lineHeight: 18 },
   itemsTitle: { fontWeight: '800', fontSize: 13, color: '#374151', marginBottom: 10 },
 
   itemRow: {

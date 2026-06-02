@@ -2,6 +2,7 @@
 import React, { useState, useContext, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
+  ActivityIndicator,
   Alert, Platform, Modal, FlatList,
 } from 'react-native';
 import { AuthContext } from '../contexts/AuthContext';
@@ -9,16 +10,33 @@ import { db } from '../firebaseConfig';
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   runTransaction,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import Sidebar from '../components/Sidebar';
 import Fruit3DViewer from '../components/Fruit3DViewerSimple';
+import AddressFormModal from '../components/AddressFormModal';
 import { FRUITS, FRUIT_MAP, INVENTORY_COLLECTION } from '../data/fruitCatalog';
 
 const PINK = '#dd2a7b';
+
+function formatAddress(address) {
+  if (!address) return '';
+  const cityLine = [address.city, address.province, address.postalCode].filter(Boolean).join(', ');
+  return [
+    address.label,
+    address.recipientName,
+    address.phone,
+    address.addressLine1,
+    address.addressLine2,
+    cityLine,
+    address.instructions,
+  ].filter((item) => item && item.trim()).join('\n');
+}
 
 export default function FruitShopScreen({ navigation }) {
   const { user, signOut } = useContext(AuthContext);
@@ -31,6 +49,59 @@ export default function FruitShopScreen({ navigation }) {
   const [cartVisible, setCartVisible] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [featuredIndex, setFeaturedIndex] = useState(0);
+  const [addresses, setAddresses] = useState([]);
+  const [defaultAddressId, setDefaultAddressId] = useState(null);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [addressLoading, setAddressLoading] = useState(true);
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
+
+  const loadAddresses = useCallback(async () => {
+    if (!user?.uid) return;
+
+    setAddressLoading(true);
+    try {
+      const [userSnap, addressesSnap] = await Promise.all([
+        getDoc(doc(db, 'users_basic', user.uid)),
+        getDocs(collection(db, 'users_basic', user.uid, 'addresses')),
+      ]);
+
+      const fetchedAddresses = addressesSnap.docs
+        .map((item) => ({ id: item.id, ...item.data() }))
+        .sort((a, b) => {
+          if (a.label && b.label) return a.label.localeCompare(b.label);
+          return (b.createdAt || '').localeCompare(a.createdAt || '');
+        });
+
+      const nextDefault = userSnap.exists() ? userSnap.data()?.defaultAddressId || null : null;
+      setDefaultAddressId(nextDefault);
+      setAddresses(fetchedAddresses);
+      setSelectedAddressId((current) => {
+        if (current && fetchedAddresses.some((item) => item.id === current)) return current;
+        return nextDefault || fetchedAddresses[0]?.id || null;
+      });
+    } catch (error) {
+      console.log('loadAddresses error:', error);
+    } finally {
+      setAddressLoading(false);
+    }
+  }, [user?.uid]);
+
+  React.useEffect(() => {
+    loadAddresses();
+  }, [loadAddresses]);
+
+  React.useEffect(() => {
+    if (addresses.length === 0) {
+      if (selectedAddressId !== null) setSelectedAddressId(null);
+      return;
+    }
+
+    const selectedExists = addresses.some((item) => item.id === selectedAddressId);
+    if (!selectedExists) {
+      setSelectedAddressId(defaultAddressId || addresses[0].id);
+    }
+  }, [addresses, defaultAddressId, selectedAddressId]);
 
   React.useEffect(() => {
     let unsubscribe = null;
@@ -91,6 +162,30 @@ export default function FruitShopScreen({ navigation }) {
     // Navigator will automatically switch to Login screen when user becomes null
   };
 
+  const selectedAddress = addresses.find((item) => item.id === selectedAddressId) || null;
+
+  const openAddAddressModal = () => {
+    setEditingAddress(null);
+    setAddressModalVisible(true);
+  };
+
+  const handleAddressSaved = async (savedAddressId) => {
+    await loadAddresses();
+    if (savedAddressId) setSelectedAddressId(savedAddressId);
+    setEditingAddress(null);
+  };
+
+  const handleSetDefaultAddress = async (addressId) => {
+    if (!user?.uid) return;
+    try {
+      await updateDoc(doc(db, 'users_basic', user.uid), { defaultAddressId: addressId });
+      setDefaultAddressId(addressId);
+      setSelectedAddressId(addressId);
+    } catch (error) {
+      notify('Could not set default', error.message);
+    }
+  };
+
   const getAvailableStock = useCallback(
     (fruitId) => Number(inventory[fruitId] ?? FRUIT_MAP[fruitId]?.defaultStock ?? 0),
     [inventory]
@@ -139,6 +234,12 @@ export default function FruitShopScreen({ navigation }) {
       notify('Empty Cart', 'Add some fruits before ordering!');
       return;
     }
+
+    if (!selectedAddress) {
+      notify('Missing Address', 'Add or select a delivery address before placing the order.');
+      return;
+    }
+
     setOrdering(true);
     try {
       await runTransaction(db, async (transaction) => {
@@ -173,6 +274,19 @@ export default function FruitShopScreen({ navigation }) {
           total: cartTotal,
           status: 'pending',
           createdAt: new Date().toISOString(),
+          deliveryAddress: {
+            addressId: selectedAddress.id,
+            label: selectedAddress.label || '',
+            recipientName: selectedAddress.recipientName || '',
+            phone: selectedAddress.phone || '',
+            addressLine1: selectedAddress.addressLine1 || '',
+            addressLine2: selectedAddress.addressLine2 || '',
+            city: selectedAddress.city || '',
+            province: selectedAddress.province || '',
+            postalCode: selectedAddress.postalCode || '',
+            instructions: selectedAddress.instructions || '',
+            formatted: formatAddress(selectedAddress),
+          },
         });
 
         Object.values(inventorySnapshot).forEach(({ ref, available, next }) => {
@@ -260,6 +374,18 @@ export default function FruitShopScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
+      <AddressFormModal
+        visible={addressModalVisible}
+        onClose={() => {
+          setAddressModalVisible(false);
+          setEditingAddress(null);
+        }}
+        onSaved={handleAddressSaved}
+        userId={user?.uid}
+        editAddress={editingAddress}
+        defaultAddressId={defaultAddressId}
+      />
+
       <Sidebar
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -439,25 +565,95 @@ export default function FruitShopScreen({ navigation }) {
             </View>
           ) : (
             <ScrollView style={styles.cartList} showsVerticalScrollIndicator={false}>
-              {cartItems.map((item) => (
-                <View key={item.id} style={styles.cartItem}>
-                  <Text style={styles.cartItemEmoji}>{item.emoji}</Text>
-                  <View style={styles.cartItemInfo}>
-                    <Text style={styles.cartItemName}>{item.name}</Text>
-                    {item.unit ? <Text style={styles.cartItemUnit}>{item.unit}</Text> : null}
-                  </View>
-                  <View style={styles.cartQtyRow}>
-                    <Pressable style={styles.cartQtyBtn} onPress={() => removeFromCart(item.id)}>
-                      <Text style={styles.cartQtyBtnText}>−</Text>
-                    </Pressable>
-                    <Text style={styles.cartQtyNum}>{item.qty}</Text>
-                    <Pressable style={[styles.cartQtyBtn, item.qty >= item.available && styles.qtyBtnDisabled]} onPress={() => addToCart(item.id)} disabled={item.qty >= item.available}>
-                      <Text style={styles.cartQtyBtnText}>+</Text>
-                    </Pressable>
-                  </View>
-                  <Text style={styles.cartItemPrice}>₱{item.subtotal}</Text>
+              <View style={styles.addressSection}>
+                <View style={styles.addressSectionHeader}>
+                  <Text style={styles.addressSectionTitle}>Delivery Address</Text>
+                  <Pressable onPress={openAddAddressModal} style={({ pressed }) => [styles.addressMiniAction, pressed && styles.addressMiniActionPressed]}>
+                    <Text style={styles.addressMiniActionText}>+ Add</Text>
+                  </Pressable>
                 </View>
-              ))}
+
+                {addressLoading ? (
+                  <View style={styles.addressLoadingRow}>
+                    <ActivityIndicator color={PINK} />
+                    <Text style={styles.addressLoadingText}>Loading saved addresses…</Text>
+                  </View>
+                ) : addresses.length === 0 ? (
+                  <View style={styles.addressEmptyCard}>
+                    <Text style={styles.addressEmptyEmoji}>📍</Text>
+                    <Text style={styles.addressEmptyText}>No saved addresses yet.</Text>
+                    <Pressable style={styles.addressEmptyBtn} onPress={openAddAddressModal}>
+                      <Text style={styles.addressEmptyBtnText}>Add address</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View style={styles.addressChoices}>
+                    {addresses.map((address) => {
+                      const isSelected = address.id === selectedAddressId;
+                      const isDefault = address.id === defaultAddressId;
+                      return (
+                        <Pressable
+                          key={address.id}
+                          onPress={() => setSelectedAddressId(address.id)}
+                          style={({ pressed }) => [
+                            styles.addressChoiceCard,
+                            isSelected && styles.addressChoiceCardSelected,
+                            pressed && styles.addressChoiceCardPressed,
+                          ]}
+                        >
+                          <View style={styles.addressChoiceTopRow}>
+                            <View style={styles.addressChoiceTitleRow}>
+                              <View style={[styles.addressRadio, isSelected && styles.addressRadioSelected]}>
+                                {isSelected ? <View style={styles.addressRadioDot} /> : null}
+                              </View>
+                              <Text style={styles.addressChoiceLabel}>{address.label || 'Saved address'}</Text>
+                              {isDefault ? <Text style={styles.addressDefaultTag}>Default</Text> : null}
+                            </View>
+                            <View style={styles.addressChoiceActions}>
+                              {!isDefault ? (
+                                <Pressable onPress={() => handleSetDefaultAddress(address.id)}>
+                                  <Text style={styles.addressChoiceActionText}>Set default</Text>
+                                </Pressable>
+                              ) : null}
+                              <Pressable
+                                onPress={() => {
+                                  setEditingAddress(address);
+                                  setAddressModalVisible(true);
+                                }}
+                              >
+                                <Text style={styles.addressChoiceActionText}>Edit</Text>
+                              </Pressable>
+                            </View>
+                          </View>
+                          <Text style={styles.addressChoiceSummary}>{formatAddress(address)}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.cartItemsSection}>
+                {cartItems.map((item) => (
+                  <View key={item.id} style={styles.cartItem}>
+                    <Text style={styles.cartItemEmoji}>{item.emoji}</Text>
+                    <View style={styles.cartItemInfo}>
+                      <Text style={styles.cartItemName}>{item.name}</Text>
+                      {item.unit ? <Text style={styles.cartItemUnit}>{item.unit}</Text> : null}
+                    </View>
+                    <View style={styles.cartQtyRow}>
+                      <Pressable style={styles.cartQtyBtn} onPress={() => removeFromCart(item.id)}>
+                        <Text style={styles.cartQtyBtnText}>−</Text>
+                      </Pressable>
+                      <Text style={styles.cartQtyNum}>{item.qty}</Text>
+                      <Pressable style={[styles.cartQtyBtn, item.qty >= item.available && styles.qtyBtnDisabled]} onPress={() => addToCart(item.id)} disabled={item.qty >= item.available}>
+                        <Text style={styles.cartQtyBtnText}>+</Text>
+                      </Pressable>
+                    </View>
+                    <Text style={styles.cartItemPrice}>₱{item.subtotal}</Text>
+                  </View>
+                ))}
+              </View>
             </ScrollView>
           )}
 
@@ -840,6 +1036,115 @@ const styles = StyleSheet.create({
   emptyCartText: { color: '#9CA3AF', fontSize: 14 },
 
   cartList: { maxHeight: 280, paddingHorizontal: 24 },
+  addressSection: {
+    paddingBottom: 16,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  addressSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  addressSectionTitle: { fontSize: 14, fontWeight: '800', color: '#1a1a1a' },
+  addressMiniAction: {
+    backgroundColor: '#FFF0F7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  addressMiniActionPressed: { opacity: 0.8 },
+  addressMiniActionText: { color: PINK, fontWeight: '800', fontSize: 11 },
+  addressLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  addressLoadingText: { marginLeft: 8, color: '#6B7280', fontSize: 12 },
+  addressEmptyCard: {
+    backgroundColor: '#FAFAFA',
+    borderRadius: 18,
+    alignItems: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+  },
+  addressEmptyEmoji: { fontSize: 30, marginBottom: 8 },
+  addressEmptyText: { color: '#6B7280', fontSize: 13, marginBottom: 12, textAlign: 'center' },
+  addressEmptyBtn: {
+    backgroundColor: PINK,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  addressEmptyBtnText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  addressChoices: { gap: 10 },
+  addressChoiceCard: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 18,
+    padding: 14,
+    backgroundColor: '#fff',
+  },
+  addressChoiceCardSelected: {
+    borderColor: '#dd2a7b',
+    backgroundColor: '#FFF8FC',
+  },
+  addressChoiceCardPressed: { opacity: 0.92 },
+  addressChoiceTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  addressChoiceTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    flex: 1,
+  },
+  addressRadio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addressRadioSelected: { borderColor: '#dd2a7b' },
+  addressRadioDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#dd2a7b',
+  },
+  addressChoiceLabel: { fontSize: 14, fontWeight: '800', color: '#1a1a1a' },
+  addressDefaultTag: {
+    backgroundColor: '#DCFCE7',
+    color: '#15803D',
+    fontSize: 10,
+    fontWeight: '800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  addressChoiceActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
+  addressChoiceActionText: { fontSize: 11, fontWeight: '800', color: PINK },
+  addressChoiceSummary: { marginTop: 10, fontSize: 12, color: '#4B5563', lineHeight: 18 },
+
+  cartItemsSection: {
+    paddingTop: 4,
+  },
   cartItem: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F9FAFB',
