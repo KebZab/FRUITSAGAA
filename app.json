@@ -1,22 +1,23 @@
 {
   "expo": {
-    "scheme": "fruitsaga",
     "android": {
-      "package": "com.yourcompany.fruitsaga",
+      "scheme": "fruitsaga",
+      "package": "com.fruitsaga.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       }
     },
-    "name": "fruitsaga",
-    "slug": "snack-9c7b2658-f46d-4227-8182-42559acf615d",
+    "name": "Fruit Saga",
+    "slug": "fruitsaga",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.fruitsaga",
+      "bundleIdentifier": "com.fruitsaga.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -30,7 +31,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "84c8809b-e933-467e-92e5-ee3a2421057a" /*Canet EAS*/
+        "projectId": "c93e6cbe-b3c8-4b50-b0e2-7a1f7dadefaa"
       }
     }
   }

@@ -232,8 +232,8 @@ export default function AdminDashboardScreen({ navigation }) {
       >
         <View style={s.container}>
           {/* Header */}
-          <View style={s.headerRow}>
-            <View>
+          <View style={s.heroBanner}>
+            <View style={s.heroCopy}>
               <Text style={s.pageTitle}>Admin Panel 🛠️</Text>
               <Text style={s.pageSubtitle}>Manage all fruit orders</Text>
             </View>
@@ -250,12 +250,12 @@ export default function AdminDashboardScreen({ navigation }) {
           {/* Stats */}
           <View style={s.statsRow}>
             {[
-              { label: 'Total', value: stats.total, color: '#6366F1' },
-              { label: 'Pending', value: stats.pending, color: '#F59E0B' },
-              { label: 'Active', value: stats.active, color: '#8B5CF6' },
-              { label: 'Done', value: stats.delivered, color: '#10B981' },
+              { label: 'Total', value: stats.total, color: PINK, bg: '#FFF0F7' },
+              { label: 'Pending', value: stats.pending, color: '#F59E0B', bg: '#FEF3C7' },
+              { label: 'Active', value: stats.active, color: '#8B5CF6', bg: '#EDE9FE' },
+              { label: 'Done', value: stats.delivered, color: '#10B981', bg: '#D1FAE5' },
             ].map((stat) => (
-              <View key={stat.label} style={[s.statCard, { borderTopColor: stat.color }]}>
+              <View key={stat.label} style={[s.statCard, { backgroundColor: stat.bg }]}>
                 <Text style={[s.statValue, { color: stat.color }]}>{stat.value}</Text>
                 <Text style={s.statLabel}>{stat.label}</Text>
               </View>
@@ -325,35 +325,43 @@ export default function AdminDashboardScreen({ navigation }) {
 }
 
 const PINK = '#dd2a7b';
-const BLUE = '#0095F6';
-
 const s = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 24 },
-  headerRow: {
+  container: { padding: 16, paddingBottom: 24, backgroundColor: '#FFF8FC', minHeight: '100%' },
+  heroBanner: {
+    backgroundColor: PINK,
+    borderRadius: 24,
+    padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 16,
+    shadowColor: PINK,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 5,
   },
-  pageTitle: { fontSize: 22, fontWeight: '800', color: '#1a1a1a' },
-  pageSubtitle: { fontSize: 13, color: '#888', marginTop: 2 },
+  heroCopy: { flex: 1, paddingRight: 12 },
+  pageTitle: { fontSize: 24, fontWeight: '900', color: '#fff' },
+  pageSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 4, lineHeight: 17 },
   headerBtns: { flexDirection: 'row', gap: 8 },
   usersBtn: {
-    backgroundColor: '#F3E8FF',
-    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderRadius: 18,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
   },
-  usersBtnText: { color: '#7C3AED', fontWeight: '700', fontSize: 13 },
+  usersBtnText: { color: PINK, fontWeight: '800', fontSize: 13 },
 
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   statCard: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 12,
     alignItems: 'center',
-    borderTopWidth: 3,
+    borderWidth: 1,
+    borderColor: '#FCE7F3',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -361,18 +369,20 @@ const s = StyleSheet.create({
     shadowRadius: 4,
   },
   statValue: { fontSize: 22, fontWeight: '800' },
-  statLabel: { fontSize: 11, color: '#888', marginTop: 2 },
+  statLabel: { fontSize: 11, color: '#6B7280', marginTop: 2, fontWeight: '700' },
 
   filterScroll: { marginBottom: 14 },
   filterRow: { flexDirection: 'row', gap: 8, paddingRight: 16 },
   chip: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: '#FCE7F3',
   },
   chipActive: { backgroundColor: '#FEE2E2' },
-  chipText: { fontSize: 12, color: '#666' },
+  chipText: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
   chipTextActive: { color: PINK, fontWeight: '700' },
 
   center: { paddingTop: 60, alignItems: 'center' },
@@ -384,13 +394,15 @@ const s = StyleSheet.create({
   // Card
   card: {
     backgroundColor: '#fff',
-    borderRadius: 18,
+    borderRadius: 20,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#FCE7F3',
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: PINK,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -403,7 +415,7 @@ const s = StyleSheet.create({
   userName: { fontSize: 13, color: '#555', marginTop: 1 },
   orderDate: { fontSize: 11, color: '#bbb', marginTop: 1 },
   cardRight: { alignItems: 'flex-end', gap: 6 },
-  statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  statusBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   statusText: { fontSize: 12, fontWeight: '700' },
   totalPill: { fontSize: 14, fontWeight: '800', color: PINK },
   chevron: { fontSize: 11, color: '#bbb' },
@@ -447,15 +459,15 @@ const s = StyleSheet.create({
   actionsRow: { flexDirection: 'row', gap: 8 },
   advanceBtn: {
     flex: 1,
-    backgroundColor: '#10B981',
-    borderRadius: 10,
+    backgroundColor: PINK,
+    borderRadius: 16,
     paddingVertical: 10,
     alignItems: 'center',
   },
   advanceBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   cancelBtn: {
     backgroundColor: '#FEE2E2',
-    borderRadius: 10,
+    borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 14,
     alignItems: 'center',

@@ -258,26 +258,26 @@ export default function InventoryDashboardScreen({ navigation }) {
     <MainLayout title="Inventory" navigation={navigation} name={user?.name}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10B981" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#dd2a7b" />}
       >
         <View style={s.container}>
-          <View style={s.headerRow}>
-            <View>
+          <View style={s.heroBanner}>
+            <View style={s.heroCopy}>
               <Text style={s.pageTitle}>Inventory Dashboard 📦</Text>
               <Text style={s.pageSubtitle}>Track and adjust fruit quantities</Text>
             </View>
           </View>
 
           <View style={s.statsRow}>
-            <View style={[s.statCard, { borderTopColor: '#10B981' }]}>
-              <Text style={[s.statValue, { color: '#10B981' }]}>{stats.total}</Text>
+            <View style={[s.statCard, { backgroundColor: '#FFF0F7' }]}>
+              <Text style={[s.statValue, { color: '#dd2a7b' }]}>{stats.total}</Text>
               <Text style={s.statLabel}>Total Units</Text>
             </View>
-            <View style={[s.statCard, { borderTopColor: '#F59E0B' }]}>
+            <View style={[s.statCard, { backgroundColor: '#FEF3C7' }]}>
               <Text style={[s.statValue, { color: '#F59E0B' }]}>{stats.lowStock}</Text>
               <Text style={s.statLabel}>Low Stock</Text>
             </View>
-            <View style={[s.statCard, { borderTopColor: '#EF4444' }]}>
+            <View style={[s.statCard, { backgroundColor: '#FEE2E2' }]}>
               <Text style={[s.statValue, { color: '#EF4444' }]}>{stats.outOfStock}</Text>
               <Text style={s.statLabel}>Out of Stock</Text>
             </View>
@@ -285,7 +285,7 @@ export default function InventoryDashboardScreen({ navigation }) {
 
           {loading ? (
             <View style={s.center}>
-              <ActivityIndicator size="large" color="#10B981" />
+              <ActivityIndicator size="large" color="#dd2a7b" />
             </View>
           ) : orderedInventory.length === 0 ? (
             <View style={s.empty}>
@@ -351,18 +351,20 @@ export default function InventoryDashboardScreen({ navigation }) {
 const card = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 14,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#FCE7F3',
     elevation: 3,
-    shadowColor: '#000',
+    shadowColor: '#dd2a7b',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
   },
   containerLow: {
-    borderWidth: 1,
     borderColor: '#FDE68A',
+    backgroundColor: '#FFFBEB',
   },
   topRow: {
     flexDirection: 'row',
@@ -373,7 +375,7 @@ const card = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 16,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FFF0F7',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -386,7 +388,7 @@ const card = StyleSheet.create({
     minWidth: 72,
   },
   stockLabel: { fontSize: 10, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.6 },
-  stockValue: { fontSize: 24, fontWeight: '900', color: '#10B981' },
+  stockValue: { fontSize: 24, fontWeight: '900', color: '#dd2a7b' },
   stockLow: { color: '#F59E0B' },
   actionsRow: {
     flexDirection: 'row',
@@ -400,8 +402,8 @@ const card = StyleSheet.create({
     alignItems: 'center',
   },
   minusBtn: { backgroundColor: '#FEF2F2' },
-  plusBtn: { backgroundColor: '#DCFCE7' },
-  editBtn: { backgroundColor: '#E0E7FF' },
+  plusBtn: { backgroundColor: '#FFF0F7' },
+  editBtn: { backgroundColor: '#FCE7F3' },
   actionBtnText: { fontSize: 14, fontWeight: '800', color: '#111827' },
   actionBtnDisabled: { opacity: 0.55 },
   actionBtnPressed: { opacity: 0.85 },
@@ -434,29 +436,39 @@ const modal = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   btn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
   cancelBtn: { backgroundColor: '#F3F4F6' },
-  saveBtn: { backgroundColor: '#10B981' },
+  saveBtn: { backgroundColor: '#dd2a7b' },
   cancelText: { color: '#374151', fontWeight: '800' },
   saveText: { color: '#fff', fontWeight: '800' },
 });
 
 const s = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 24 },
-  headerRow: {
+  container: { padding: 16, paddingBottom: 24, backgroundColor: '#FFF8FC', minHeight: '100%' },
+  heroBanner: {
+    backgroundColor: '#dd2a7b',
+    borderRadius: 24,
+    padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 16,
+    shadowColor: '#dd2a7b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 5,
   },
-  pageTitle: { fontSize: 22, fontWeight: '800', color: '#111827' },
-  pageSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  heroCopy: { flex: 1, paddingRight: 12 },
+  heroEmoji: { fontSize: 46, marginLeft: 8 },
+  pageTitle: { fontSize: 24, fontWeight: '900', color: '#fff' },
+  pageSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 4, lineHeight: 17 },
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   statCard: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 12,
     alignItems: 'center',
-    borderTopWidth: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.65)',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -464,7 +476,7 @@ const s = StyleSheet.create({
     shadowRadius: 4,
   },
   statValue: { fontSize: 22, fontWeight: '800' },
-  statLabel: { fontSize: 11, color: '#888', marginTop: 2 },
+  statLabel: { fontSize: 11, color: '#6B7280', marginTop: 2, fontWeight: '700' },
   center: { paddingTop: 60, alignItems: 'center' },
   empty: { alignItems: 'center', paddingTop: 40 },
   emptyEmoji: { fontSize: 40, marginBottom: 8 },

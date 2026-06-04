@@ -423,7 +423,7 @@ export default function FruitShopScreen({ navigation }) {
         </Pressable>
 
         <View style={styles.topCenter}>
-          <Text style={styles.pageTitle}>Fusion Fruit Studio!</Text>
+          <Text style={styles.pageTitle}>Fruit Shop</Text>
         </View>
 
         {canOrder ? (
