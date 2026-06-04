@@ -20,7 +20,7 @@ import { AuthContext } from '../contexts/AuthContext';
 WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_WEB_CLIENT_ID = '132571887694-v85c2lialak4j7vq10ur86se9imj4u1k.apps.googleusercontent.com';
-const GOOGLE_ANDROID_CLIENT_ID = '132571887694-9bt9sfqvgcc8q0l07lb142lu8plqlri.apps.googleusercontent.com';
+const GOOGLE_ANDROID_CLIENT_ID = '132571887694-9bt9sfqvgqc8q0l0l7lb142lu8plqlri.apps.googleusercontent.com';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
