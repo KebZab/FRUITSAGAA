@@ -5,8 +5,13 @@ import {
   StyleSheet, Pressable, ActivityIndicator, Modal,
   Animated, Easing, Dimensions,
 } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import {
+  GoogleSignin,
+  isCancelledResponse,
+  isErrorWithCode,
+  isSuccessResponse,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import LoginLayout from '../components/layouts/LoginLayout';
 import ModelViewer from '../components/ModelViewer';
 import { auth, db } from '../firebaseConfig';
@@ -17,10 +22,7 @@ import {
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { AuthContext } from '../contexts/AuthContext';
 
-WebBrowser.maybeCompleteAuthSession();
-
 const GOOGLE_WEB_CLIENT_ID = '132571887694-v85c2lialak4j7vq10ur86se9imj4u1k.apps.googleusercontent.com';
-const GOOGLE_ANDROID_CLIENT_ID = '132571887694-9bt9sfqvgqc8q0l0l7lb142lu8plqlri.apps.googleusercontent.com';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -29,6 +31,7 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [createUserEmail, setCreateUserEmail] = useState('');
   const [createUserPass, setCreateUserPass] = useState('');
@@ -59,11 +62,6 @@ export default function LoginScreen({ navigation }) {
   const loginOpacityAnim = useRef(new Animated.Value(0)).current;
 
   const { signIn } = useContext(AuthContext);
-  const [googleRequest, googleResponse, promptGoogleLogin] = Google.useAuthRequest({
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-    iosClientId: GOOGLE_WEB_CLIENT_ID,
-  });
 
   // ── intro sequence ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -104,27 +102,14 @@ export default function LoginScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    const completeGoogleLogin = async () => {
-      if (googleResponse?.type !== 'success') return;
-
-      try {
-        const idToken = googleResponse.authentication?.idToken;
-        const accessToken = googleResponse.authentication?.accessToken;
-
-        if (!idToken && !accessToken) {
-          throw new Error('Missing Google authentication token');
-        }
-
-        const credential = GoogleAuthProvider.credential(idToken, accessToken);
-        const { user: firebaseUser } = await signInWithCredential(auth, credential);
-        await handleAuthSuccess(firebaseUser);
-      } catch (error) {
-        Alert.alert('Google Authentication failed', error.message);
-      }
-    };
-
-    completeGoogleLogin();
-  }, [googleResponse]);
+    if (Platform.OS !== 'web') {
+      GoogleSignin.configure({
+        webClientId: GOOGLE_WEB_CLIENT_ID,
+        offlineAccess: false,
+        scopes: ['profile', 'email'],
+      });
+    }
+  }, []);
 
   // ── helpers (unchanged) ─────────────────────────────────────────────────────
   const notify = (title, msg) => {
@@ -217,6 +202,8 @@ export default function LoginScreen({ navigation }) {
 
   const handleGoogleLogin = async () => {
     try {
+      setGoogleLoading(true);
+
       if (Platform.OS === 'web') {
         const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
@@ -224,9 +211,33 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
-      await promptGoogleLogin({ useProxy: true });
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const response = await GoogleSignin.signIn({
+        prompt: 'select_account',
+      });
+
+      if (isCancelledResponse(response)) return;
+      if (!isSuccessResponse(response)) {
+        throw new Error('Google sign-in did not return an account.');
+      }
+
+      const idToken = response.data.idToken;
+      if (!idToken) {
+        throw new Error('Google did not return an ID token.');
+      }
+
+      const credential = GoogleAuthProvider.credential(idToken);
+      const { user: firebaseUser } = await signInWithCredential(auth, credential);
+      await handleAuthSuccess(firebaseUser);
     } catch (error) {
+      if (isErrorWithCode(error) && error.code === statusCodes.IN_PROGRESS) return;
+      if (isErrorWithCode(error) && error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Google Sign-In Unavailable', 'Google Play Services is not available or needs an update.');
+        return;
+      }
       Alert.alert('Google Authentication failed', error.message);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -382,11 +393,11 @@ export default function LoginScreen({ navigation }) {
       </Modal>
 
       {/* ─── Intro Animation Overlay ───────────────────────────────────────── */}
-      {introVisible && (
+      {(introVisible || googleLoading) && (
         <Animated.View
           style={[
             styles.introOverlay,
-            { opacity: introOpacityAnim }
+            googleLoading ? styles.googleLoadingOverlay : { opacity: introOpacityAnim }
           ]}
         >
 
@@ -395,7 +406,7 @@ export default function LoginScreen({ navigation }) {
               styles.introModelWrap,
               {
                 transform: [
-                  { scale: introScaleAnim },
+                  { scale: googleLoading ? 1 : introScaleAnim },
                 ],
               },
             ]}
@@ -406,13 +417,19 @@ export default function LoginScreen({ navigation }) {
           <Animated.View
             style={[
               styles.introBrandWrap,
-              { opacity: brandAnim }
+              googleLoading ? styles.googleLoadingBrand : { opacity: brandAnim }
             ]}
           >
             <Text style={styles.introBrandTitle}>Fruit Saga</Text>
             <Text style={styles.introBrandSub}>
-              Order fresh fruits, delivered fast
+              {googleLoading ? 'Signing in with Google...' : 'Order fresh fruits, delivered fast'}
             </Text>
+            {googleLoading && (
+              <ActivityIndicator
+                color="#dd2a7b"
+                style={styles.googleLoadingSpinner}
+              />
+            )}
           </Animated.View>
 
         </Animated.View>
@@ -482,7 +499,7 @@ export default function LoginScreen({ navigation }) {
           <Pressable
             style={styles.googleBtn}
             onPress={handleGoogleLogin}
-            disabled={loading}
+            disabled={loading || googleLoading}
           >
             <Text style={styles.googleBtnText}>
               🌐 Sign in with Google
@@ -522,6 +539,18 @@ const styles = StyleSheet.create({
   introBrandWrap: {
     alignItems: 'center',
     marginTop: 28,
+  },
+
+  googleLoadingOverlay: {
+    opacity: 1,
+  },
+
+  googleLoadingBrand: {
+    opacity: 1,
+  },
+
+  googleLoadingSpinner: {
+    marginTop: 18,
   },
 
   introBrandTitle: {
