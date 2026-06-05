@@ -31,6 +31,7 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [createUserEmail, setCreateUserEmail] = useState('');
   const [createUserPass, setCreateUserPass] = useState('');
@@ -201,6 +202,8 @@ export default function LoginScreen({ navigation }) {
 
   const handleGoogleLogin = async () => {
     try {
+      setGoogleLoading(true);
+
       if (Platform.OS === 'web') {
         const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
@@ -233,6 +236,8 @@ export default function LoginScreen({ navigation }) {
         return;
       }
       Alert.alert('Google Authentication failed', error.message);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -388,11 +393,11 @@ export default function LoginScreen({ navigation }) {
       </Modal>
 
       {/* ─── Intro Animation Overlay ───────────────────────────────────────── */}
-      {introVisible && (
+      {(introVisible || googleLoading) && (
         <Animated.View
           style={[
             styles.introOverlay,
-            { opacity: introOpacityAnim }
+            googleLoading ? styles.googleLoadingOverlay : { opacity: introOpacityAnim }
           ]}
         >
 
@@ -401,7 +406,7 @@ export default function LoginScreen({ navigation }) {
               styles.introModelWrap,
               {
                 transform: [
-                  { scale: introScaleAnim },
+                  { scale: googleLoading ? 1 : introScaleAnim },
                 ],
               },
             ]}
@@ -412,13 +417,19 @@ export default function LoginScreen({ navigation }) {
           <Animated.View
             style={[
               styles.introBrandWrap,
-              { opacity: brandAnim }
+              googleLoading ? styles.googleLoadingBrand : { opacity: brandAnim }
             ]}
           >
             <Text style={styles.introBrandTitle}>Fruit Saga</Text>
             <Text style={styles.introBrandSub}>
-              Order fresh fruits, delivered fast
+              {googleLoading ? 'Signing in with Google...' : 'Order fresh fruits, delivered fast'}
             </Text>
+            {googleLoading && (
+              <ActivityIndicator
+                color="#dd2a7b"
+                style={styles.googleLoadingSpinner}
+              />
+            )}
           </Animated.View>
 
         </Animated.View>
@@ -488,7 +499,7 @@ export default function LoginScreen({ navigation }) {
           <Pressable
             style={styles.googleBtn}
             onPress={handleGoogleLogin}
-            disabled={loading}
+            disabled={loading || googleLoading}
           >
             <Text style={styles.googleBtnText}>
               🌐 Sign in with Google
@@ -528,6 +539,18 @@ const styles = StyleSheet.create({
   introBrandWrap: {
     alignItems: 'center',
     marginTop: 28,
+  },
+
+  googleLoadingOverlay: {
+    opacity: 1,
+  },
+
+  googleLoadingBrand: {
+    opacity: 1,
+  },
+
+  googleLoadingSpinner: {
+    marginTop: 18,
   },
 
   introBrandTitle: {

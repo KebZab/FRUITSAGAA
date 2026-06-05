@@ -5,15 +5,15 @@
       "package": "com.yourcompany.fruitsaga",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/apple-reference-icon.png",
+        "backgroundColor": "#fff7fa"
       }
     },
-    "name": "fruitsaga",
+    "name": "Fruit Saga",
     "slug": "snack-9c7b2658-f46d-4227-8182-42559acf615d",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/apple-reference-icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
@@ -28,7 +28,7 @@
     "plugins": [
       "expo-asset",
       "expo-font",
-      "@react-native-google-signin/google-signin"
+      "./node_modules/@react-native-google-signin/google-signin/app.plugin.js"
     ],
     "extra": {
       "eas": {
