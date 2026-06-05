@@ -1,0 +1,92 @@
+{
+  "project_info": {
+    "project_number": "132571887694",
+    "project_id": "uxer-870af",
+    "storage_bucket": "uxer-870af.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:132571887694:android:2a4c82cda2e4cb63f4eb1f",
+        "android_client_info": {
+          "package_name": "com.fruitsaga.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "132571887694-v85c2lialak4j7vq10ur86se9imj4u1k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFtng6Ssh-k89fa4NlGnbAt77qzc3GTo0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "132571887694-v85c2lialak4j7vq10ur86se9imj4u1k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:132571887694:android:1c16734fed82083ef4eb1f",
+        "android_client_info": {
+          "package_name": "com.yourcompany.fruitsaga"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "132571887694-9bt9sfqvgqc8q0l0l7lb142lu8plqlri.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.yourcompany.fruitsaga",
+            "certificate_hash": "e3a23e40635ff08e0fec032f6d468af9dc80a765"
+          }
+        },
+        {
+          "client_id": "132571887694-hcpsl6lqb68sdpvg0ft422fp7cusqsg5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.yourcompany.fruitsaga",
+            "certificate_hash": "e3a23e40635ff08e0fec032f6d468af9dc80a765"
+          }
+        },
+        {
+          "client_id": "132571887694-l9943rjaf2tthd7mv2fet47jsjikp2h1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.yourcompany.fruitsaga",
+            "certificate_hash": "e3a23e40635ff08e0fec032f6d468af9dc80a765"
+          }
+        },
+        {
+          "client_id": "132571887694-v85c2lialak4j7vq10ur86se9imj4u1k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFtng6Ssh-k89fa4NlGnbAt77qzc3GTo0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "132571887694-v85c2lialak4j7vq10ur86se9imj4u1k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
