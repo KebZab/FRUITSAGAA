@@ -216,8 +216,8 @@ export default function AdminUsersScreen({ navigation }) {
       >
         <View style={s.container}>
           {/* Header */}
-          <View style={s.headerRow}>
-            <View>
+          <View style={s.heroBanner}>
+            <View style={s.heroCopy}>
               <Text style={s.pageTitle}>User Management 👥</Text>
               <Text style={s.pageSubtitle}>View and manage accounts</Text>
             </View>
@@ -229,13 +229,13 @@ export default function AdminUsersScreen({ navigation }) {
           {/* Stats */}
           <View style={s.statsRow}>
             {[
-              { label: 'Total', value: stats.total, color: '#6366F1' },
-              { label: 'Admins', value: stats.admins, color: '#8B5CF6' },
-              { label: 'Inventory', value: stats.inventory, color: '#10B981' },
-              { label: 'Active', value: stats.active, color: '#10B981' },
-              { label: 'Disabled', value: stats.disabled, color: '#EF4444' },
+              { label: 'Total', value: stats.total, color: PINK, bg: '#FFF0F7' },
+              { label: 'Admins', value: stats.admins, color: '#8B5CF6', bg: '#EDE9FE' },
+              { label: 'Inventory', value: stats.inventory, color: '#10B981', bg: '#D1FAE5' },
+              { label: 'Active', value: stats.active, color: '#10B981', bg: '#ECFDF5' },
+              { label: 'Disabled', value: stats.disabled, color: '#EF4444', bg: '#FEE2E2' },
             ].map((stat) => (
-              <View key={stat.label} style={[s.statCard, { borderTopColor: stat.color }]}>
+              <View key={stat.label} style={[s.statCard, { backgroundColor: stat.bg }]}>
                 <Text style={[s.statValue, { color: stat.color }]}>{stat.value}</Text>
                 <Text style={s.statLabel}>{stat.label}</Text>
               </View>
@@ -329,31 +329,40 @@ const PINK = '#dd2a7b';
 const PURPLE = '#7C3AED';
 
 const s = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 32 },
-  headerRow: {
+  container: { padding: 16, paddingBottom: 32, backgroundColor: '#FFF8FC', minHeight: '100%' },
+  heroBanner: {
+    backgroundColor: PINK,
+    borderRadius: 24,
+    padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 16,
+    shadowColor: PINK,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 5,
   },
-  pageTitle: { fontSize: 22, fontWeight: '800', color: '#1a1a1a' },
-  pageSubtitle: { fontSize: 13, color: '#888', marginTop: 2 },
+  heroCopy: { flex: 1, paddingRight: 12 },
+  pageTitle: { fontSize: 24, fontWeight: '900', color: '#fff' },
+  pageSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 4, lineHeight: 17 },
   backBtn: {
-    backgroundColor: '#EDE9FE',
-    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderRadius: 18,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
   },
-  backBtnText: { color: PURPLE, fontWeight: '700', fontSize: 13 },
+  backBtnText: { color: PINK, fontWeight: '800', fontSize: 13 },
 
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   statCard: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 12,
     alignItems: 'center',
-    borderTopWidth: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.65)',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -361,21 +370,23 @@ const s = StyleSheet.create({
     shadowRadius: 4,
   },
   statValue: { fontSize: 22, fontWeight: '800' },
-  statLabel: { fontSize: 11, color: '#888', marginTop: 2 },
+  statLabel: { fontSize: 11, color: '#6B7280', marginTop: 2, fontWeight: '700' },
 
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 14,
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 4,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#FCE7F3',
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: PINK,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
   },
   searchIcon: { fontSize: 16, marginRight: 8 },
   searchInput: { flex: 1, fontSize: 14, paddingVertical: 10, color: '#1a1a1a' },
@@ -383,9 +394,16 @@ const s = StyleSheet.create({
 
   chipScroll: { marginBottom: 14 },
   chipRow: { flexDirection: 'row', gap: 8, paddingRight: 16, alignItems: 'center' },
-  chip: { backgroundColor: '#f5f5f5', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  chip: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#FCE7F3',
+  },
   chipActive: { backgroundColor: '#FEE2E2' },
-  chipText: { fontSize: 12, color: '#666' },
+  chipText: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
   chipTextActive: { color: PINK, fontWeight: '700' },
   chipDivider: { width: 1, height: 20, backgroundColor: '#e5e5e5', marginHorizontal: 4 },
 
@@ -399,26 +417,28 @@ const s = StyleSheet.create({
 const card = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 14,
+    borderWidth: 1,
+    borderColor: '#FCE7F3',
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: '#dd2a7b',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
   },
-  containerDisabled: { backgroundColor: '#fafafa', opacity: 0.8 },
+  containerDisabled: { backgroundColor: '#FAFAFA', opacity: 0.82, borderColor: '#E5E7EB' },
   leftSection: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
   avatar: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#0095F6',
+    backgroundColor: '#dd2a7b',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  avatarAdmin: { backgroundColor: PURPLE },
+  avatarAdmin: { backgroundColor: '#8B5CF6' },
   avatarInventory: { backgroundColor: '#10B981' },
   avatarDisabled: { backgroundColor: '#d1d5db' },
   avatarText: { color: '#fff', fontWeight: '800', fontSize: 18 },
@@ -426,11 +446,11 @@ const card = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   name: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
   nameDisabled: { color: '#9ca3af' },
-  selfBadge: { backgroundColor: '#DBEAFE', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  selfText: { fontSize: 10, color: '#3B82F6', fontWeight: '700' },
+  selfBadge: { backgroundColor: '#FFF0F7', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 },
+  selfText: { fontSize: 10, color: '#dd2a7b', fontWeight: '800' },
   email: { fontSize: 12, color: '#888', marginTop: 1 },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 5, flexWrap: 'wrap' },
-  roleBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  roleBadge: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
   roleBadgeAdmin: { backgroundColor: '#EDE9FE' },
   roleBadgeInventory: { backgroundColor: '#DCFCE7' },
   roleBadgeUser: { backgroundColor: '#F3F4F6' },
@@ -438,16 +458,16 @@ const card = StyleSheet.create({
   roleTextAdmin: { color: PURPLE },
   roleTextInventory: { color: '#10B981' },
   roleTextUser: { color: '#6B7280' },
-  disabledBadge: { backgroundColor: '#FEE2E2', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  disabledBadge: { backgroundColor: '#FEE2E2', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
   disabledBadgeText: { fontSize: 11, color: '#EF4444', fontWeight: '600' },
   actions: { flexDirection: 'row', gap: 8 },
-  actionBtn: { flex: 1, borderRadius: 10, paddingVertical: 9, alignItems: 'center' },
+  actionBtn: { flex: 1, borderRadius: 16, paddingVertical: 10, alignItems: 'center' },
   disableBtn: { backgroundColor: '#FEE2E2' },
   enableBtn: { backgroundColor: '#D1FAE5' },
   actionBtnText: { fontWeight: '700', fontSize: 13, color: '#1a1a1a' },
   roleBtn: {
     backgroundColor: '#F3F4F6',
-    borderRadius: 10,
+    borderRadius: 16,
     paddingVertical: 9,
     paddingHorizontal: 14,
     alignItems: 'center',
