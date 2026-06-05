@@ -74,15 +74,47 @@ function SideMenu({ visible, onClose, navigation, logout }) {
   );
 }
 
+function AvatarMenu({ visible, onProfile, onLogout, onClose }) {
+  if (!visible) return null;
+
+  return (
+    <>
+      <Pressable style={menu.avatarOverlay} onPress={onClose} />
+      <View style={menu.avatarMenu}>
+        <Pressable
+          style={({ pressed }) => [menu.avatarMenuItem, pressed && menu.avatarMenuItemPressed]}
+          onPress={onProfile}
+        >
+          <Text style={menu.avatarMenuProfileText}>Profile</Text>
+        </Pressable>
+        <View style={menu.avatarMenuDivider} />
+        <Pressable
+          style={({ pressed }) => [menu.avatarMenuItem, pressed && menu.avatarMenuItemPressed]}
+          onPress={onLogout}
+        >
+          <Text style={menu.avatarMenuText}>Logout</Text>
+        </Pressable>
+      </View>
+    </>
+  );
+}
+
 export default function HomeScreen({ navigation }) {
   const { user, signOut } = useContext(AuthContext);
   const [recentOrders, setRecentOrders] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     setMenuOpen(false);
+    setAvatarMenuOpen(false);
     await signOut();
+  };
+
+  const handleProfile = () => {
+    setAvatarMenuOpen(false);
+    navigation.navigate('Profile');
   };
 
   const fetchRecent = useCallback(async () => {
@@ -146,10 +178,20 @@ export default function HomeScreen({ navigation }) {
             <View style={styles.hamburgerLine} />
           </Pressable>
 
-          <View style={styles.avatar}>
+          <Pressable
+            style={styles.avatar}
+            onPress={() => setAvatarMenuOpen((v) => !v)}
+          >
             <Text style={styles.avatarText}>{initials}</Text>
-          </View>
+          </Pressable>
         </View>
+
+        <AvatarMenu
+          visible={avatarMenuOpen}
+          onProfile={handleProfile}
+          onLogout={handleLogout}
+          onClose={() => setAvatarMenuOpen(false)}
+        />
 
         {/* HERO BANNER */}
         <View style={styles.heroBanner}>
@@ -295,6 +337,54 @@ const menu = StyleSheet.create({
   logoutPressed: { backgroundColor: '#FCE7F3' },
   logoutIcon: { fontSize: 18, marginRight: 14 },
   logoutText: { fontSize: 15, fontWeight: '700', color: PINK },
+  avatarOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 19,
+  },
+  avatarMenu: {
+    position: 'absolute',
+    top: 72,
+    right: 16,
+    width: 136,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ECECEC',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 8,
+    overflow: 'hidden',
+    zIndex: 20,
+  },
+  avatarMenuItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    backgroundColor: '#fff',
+    alignItems: 'flex-start',
+  },
+  avatarMenuDivider: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+  },
+  avatarMenuItemPressed: {
+    backgroundColor: '#FFF7F7',
+  },
+  avatarMenuProfileText: {
+    color: '#262626',
+    fontWeight: '500',
+    fontSize: 15,
+  },
+  avatarMenuText: {
+    color: '#DC2626',
+    fontWeight: '700',
+    fontSize: 15,
+  },
 });
 
 // ─── Screen Styles ────────────────────────────────────────────────────────────
@@ -303,7 +393,7 @@ const styles = StyleSheet.create({
 
   topBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 56 : 32, paddingBottom: 12,
+    paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 56 : 20, paddingBottom: 10,
   },
   menuBtn: { gap: 5, padding: 4 },
   hamburgerLine: { width: 22, height: 2.5, backgroundColor: '#1a1a1a', borderRadius: 4 },

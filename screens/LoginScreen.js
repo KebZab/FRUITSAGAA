@@ -489,10 +489,7 @@ export default function LoginScreen({ navigation }) {
             </Text>
           </Pressable>
 
-          <Text style={styles.testText}>
-            Test user: testers@testers.com / testers{'\n'}
-            Admin: set role="admin" in Firestore users_basic
-          </Text>
+  
 
         </View>
       </Animated.View>

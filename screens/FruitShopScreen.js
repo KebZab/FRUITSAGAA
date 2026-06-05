@@ -6,6 +6,7 @@ import {
   Alert, Platform, Modal, FlatList,
 } from 'react-native';
 import { AuthContext } from '../contexts/AuthContext';
+import { CartContext } from '../contexts/CartContext';
 import { db } from '../firebaseConfig';
 import {
   collection,
@@ -40,11 +41,11 @@ function formatAddress(address) {
 
 export default function FruitShopScreen({ navigation }) {
   const { user, signOut } = useContext(AuthContext);
+  const { cart, setCart, clearCart, cartReady } = useContext(CartContext);
   const userRole = user?.role || 'user';
   const canOrder = userRole !== 'inventoryChecker';
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [cart, setCart] = useState({});
   const [inventory, setInventory] = useState({});
   const [cartVisible, setCartVisible] = useState(false);
   const [ordering, setOrdering] = useState(false);
@@ -304,7 +305,7 @@ export default function FruitShopScreen({ navigation }) {
           }, { merge: true });
         });
       });
-      setCart({});
+      clearCart();
       setCartVisible(false);
       Alert.alert('Order Placed! 🎉', 'Track it in My Orders.', [
         { text: 'View Orders', onPress: () => navigation.navigate('UserOrders') },
@@ -320,6 +321,15 @@ export default function FruitShopScreen({ navigation }) {
   const featuredFruit = FRUITS[featuredIndex];
   const featuredQty = cart[featuredFruit.id] || 0;
   const featuredAvailable = getAvailableStock(featuredFruit.id);
+
+  if (!cartReady) {
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="large" color={PINK} />
+        <Text style={styles.loadingText}>Loading your cart...</Text>
+      </View>
+    );
+  }
 
   const handlePrevFruit = () => {
     setFeaturedIndex((prev) => (prev === 0 ? FRUITS.length - 1 : prev - 1));
@@ -686,6 +696,18 @@ export default function FruitShopScreen({ navigation }) {
 // ─── Screen Styles ────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFF8FC' },
+  loadingWrap: {
+    flex: 1,
+    backgroundColor: '#FFF8FC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

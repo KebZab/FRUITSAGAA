@@ -10,8 +10,9 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import { AuthContext } from '../contexts/AuthContext';
+import Sidebar from '../components/Sidebar';
+import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import AddressFormModal from '../components/AddressFormModal';
 
@@ -27,47 +28,6 @@ function formatAddress(address) {
   ].filter((item) => item && item.trim());
 
   return lines.join('\n');
-}
-
-// ─── Side Menu ───────────────────────────────────────────────────────────────
-function SideMenu({ visible, onClose, navigation, onLogout }) {
-  if (!visible) return null;
-  return (
-    <>
-      <View style={menu.sidebar}>
-        <View style={menu.brand}>
-          <Text style={menu.brandEmoji}>🍓</Text>
-          <Text style={menu.brandName}>FreshFruits</Text>
-        </View>
-        <View style={menu.divider} />
-        {[
-          { icon: '🏠', label: 'Home',      screen: 'Home' },
-          { icon: '🛒', label: 'Shop',      screen: 'FruitShop' },
-          { icon: '📋', label: 'My Orders', screen: 'UserOrders' },
-          { icon: '👤', label: 'Profile',   screen: 'Profile' },
-        ].map((item) => (
-          <Pressable
-            key={item.screen}
-            style={({ pressed }) => [menu.item, pressed && menu.itemPressed]}
-            onPress={() => { onClose(); navigation.navigate(item.screen); }}
-          >
-            <Text style={menu.itemIcon}>{item.icon}</Text>
-            <Text style={menu.itemLabel}>{item.label}</Text>
-          </Pressable>
-        ))}
-        <View style={menu.spacer} />
-        <View style={menu.divider} />
-        <Pressable
-          style={({ pressed }) => [menu.logoutBtn, pressed && menu.logoutPressed]}
-          onPress={onLogout}
-        >
-          <Text style={menu.logoutIcon}>🚪</Text>
-          <Text style={menu.logoutText}>Sign Out</Text>
-        </Pressable>
-      </View>
-      <Pressable style={menu.overlay} onPress={onClose} />
-    </>
-  );
 }
 
 // ─── Info Row ────────────────────────────────────────────────────────────────
@@ -89,9 +49,13 @@ function InfoRow({ icon, label, value }) {
 export default function ProfileScreen({ navigation }) {
   const { user, signOut } = useContext(AuthContext);
   const [menuOpen, setMenuOpen] = useState(false);
+  const userRole = user?.role || 'user';
+  const isAdmin = userRole === 'admin';
+  const isInventoryChecker = userRole === 'inventoryChecker';
+  const isCustomer = !isAdmin && !isInventoryChecker;
   const [addresses, setAddresses] = useState([]);
   const [defaultAddressId, setDefaultAddressId] = useState(null);
-  const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [savingDefaultId, setSavingDefaultId] = useState(null);
   const [deletingAddressId, setDeletingAddressId] = useState(null);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
@@ -101,8 +65,19 @@ export default function ProfileScreen({ navigation }) {
     ? user.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
     : '?';
 
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    await signOut();
+    // Navigator will automatically switch to Login screen when user becomes null
+  };
+
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid || !isCustomer) {
+      setAddresses([]);
+      setDefaultAddressId(null);
+      setLoadingAddresses(false);
+      return;
+    }
 
     let mounted = true;
 
@@ -138,10 +113,10 @@ export default function ProfileScreen({ navigation }) {
     return () => {
       mounted = false;
     };
-  }, [user?.uid]);
+  }, [isCustomer, user?.uid]);
 
   const reloadAddresses = async () => {
-    if (!user?.uid) return;
+    if (!user?.uid || !isCustomer) return;
 
     try {
       const userRef = doc(db, 'users_basic', user.uid);
@@ -164,18 +139,12 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  const handleLogout = async () => {
-    setMenuOpen(false);
-    await signOut();
-    // Navigator will automatically switch to Login screen when user becomes null
-  };
-
   const handleAddressSaved = async () => {
     await reloadAddresses();
   };
 
   const handleSetDefault = async (addressId) => {
-    if (!user?.uid) return;
+    if (!user?.uid || !isCustomer) return;
     setSavingDefaultId(addressId);
     try {
       await updateDoc(doc(db, 'users_basic', user.uid), { defaultAddressId: addressId });
@@ -188,7 +157,7 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleDeleteAddress = (address) => {
-    if (!user?.uid) return;
+    if (!user?.uid || !isCustomer) return;
 
     const confirmDelete = async () => {
       setDeletingAddressId(address.id);
@@ -235,11 +204,36 @@ export default function ProfileScreen({ navigation }) {
         defaultAddressId={defaultAddressId}
       />
 
-      <SideMenu
+      <Sidebar
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
-        navigation={navigation}
-        onLogout={handleLogout}
+        isAdmin={isAdmin}
+        role={userRole}
+        userName={user?.name || 'User'}
+        onHome={() => {
+          setMenuOpen(false);
+          navigation.navigate(isAdmin ? 'AdminDashboard' : isInventoryChecker ? 'InventoryDashboard' : 'Home');
+        }}
+        onAdminOrders={() => {
+          setMenuOpen(false);
+          navigation.navigate('AdminDashboard');
+        }}
+        onAdminUsers={() => {
+          setMenuOpen(false);
+          navigation.navigate('AdminUsers');
+        }}
+        onInventoryDashboard={() => {
+          setMenuOpen(false);
+          navigation.navigate('InventoryDashboard');
+        }}
+        onShop={() => {
+          setMenuOpen(false);
+          navigation.navigate('FruitShop');
+        }}
+        onMyOrders={() => {
+          setMenuOpen(false);
+          navigation.navigate('UserOrders');
+        }}
       />
 
       {/* TOP BAR */}
@@ -283,126 +277,129 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Delivery Addresses</Text>
-            <Pressable
-              style={({ pressed }) => [styles.addAddressBtn, pressed && styles.addAddressBtnPressed]}
-              onPress={() => {
-                setEditingAddress(null);
-                setAddressModalVisible(true);
-              }}
-            >
-              <Text style={styles.addAddressBtnText}>+ Add</Text>
-            </Pressable>
-          </View>
+        {isCustomer ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Delivery Addresses</Text>
+              <Pressable
+                style={({ pressed }) => [styles.addAddressBtn, pressed && styles.addAddressBtnPressed]}
+                onPress={() => {
+                  setEditingAddress(null);
+                  setAddressModalVisible(true);
+                }}
+              >
+                <Text style={styles.addAddressBtnText}>+ Add</Text>
+              </Pressable>
+            </View>
 
-          <View style={styles.card}>
-            {loadingAddresses ? (
-              <View style={styles.addressLoading}>
-                <ActivityIndicator color={PINK} />
-                <Text style={styles.addressLoadingText}>Loading addresses…</Text>
-              </View>
-            ) : addresses.length === 0 ? (
-              <View style={styles.emptyAddressState}>
-                <Text style={styles.emptyAddressEmoji}>📍</Text>
-                <Text style={styles.emptyAddressTitle}>No saved addresses yet</Text>
-                <Text style={styles.emptyAddressText}>
-                  Add one here or during checkout so you can reuse it next time.
-                </Text>
-                <Pressable
-                  style={styles.addFirstAddressBtn}
-                  onPress={() => {
-                    setEditingAddress(null);
-                    setAddressModalVisible(true);
-                  }}
-                >
-                  <Text style={styles.addFirstAddressBtnText}>Add your first address</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={styles.addressList}>
-                {addresses.map((address) => {
-                  const isDefault = address.id === defaultAddressId;
-                  const isBusy = savingDefaultId === address.id || deletingAddressId === address.id;
+            <View style={styles.card}>
+              {loadingAddresses ? (
+                <View style={styles.addressLoading}>
+                  <ActivityIndicator color={PINK} />
+                  <Text style={styles.addressLoadingText}>Loading addresses...</Text>
+                </View>
+              ) : addresses.length === 0 ? (
+                <View style={styles.emptyAddressState}>
+                  <Text style={styles.emptyAddressEmoji}>📍</Text>
+                  <Text style={styles.emptyAddressTitle}>No saved addresses yet</Text>
+                  <Text style={styles.emptyAddressText}>
+                    Add one here or during checkout so you can reuse it next time.
+                  </Text>
+                  <Pressable
+                    style={styles.addFirstAddressBtn}
+                    onPress={() => {
+                      setEditingAddress(null);
+                      setAddressModalVisible(true);
+                    }}
+                  >
+                    <Text style={styles.addFirstAddressBtnText}>Add your first address</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.addressList}>
+                  {addresses.map((address) => {
+                    const isDefault = address.id === defaultAddressId;
+                    const isBusy = savingDefaultId === address.id || deletingAddressId === address.id;
 
-                  return (
-                    <View key={address.id} style={styles.addressCard}>
-                      <View style={styles.addressCardTopRow}>
-                        <View style={styles.addressLabelRow}>
-                          <Text style={styles.addressLabel}>{address.label || 'Saved address'}</Text>
-                          {isDefault ? (
-                            <View style={styles.defaultBadge}>
-                              <Text style={styles.defaultBadgeText}>Default</Text>
-                            </View>
-                          ) : null}
-                        </View>
-                        <View style={styles.addressActionRow}>
-                          {!isDefault ? (
+                    return (
+                      <View key={address.id} style={styles.addressCard}>
+                        <View style={styles.addressCardTopRow}>
+                          <View style={styles.addressLabelRow}>
+                            <Text style={styles.addressLabel}>{address.label || 'Saved address'}</Text>
+                            {isDefault ? (
+                              <View style={styles.defaultBadge}>
+                                <Text style={styles.defaultBadgeText}>Default</Text>
+                              </View>
+                            ) : null}
+                          </View>
+                          <View style={styles.addressActionRow}>
+                            {!isDefault ? (
+                              <Pressable
+                                onPress={() => handleSetDefault(address.id)}
+                                disabled={isBusy}
+                                style={({ pressed }) => [styles.addressActionBtn, pressed && styles.addressActionBtnPressed]}
+                              >
+                                <Text style={styles.addressActionText}>Set default</Text>
+                              </Pressable>
+                            ) : null}
                             <Pressable
-                              onPress={() => handleSetDefault(address.id)}
+                              onPress={() => {
+                                setEditingAddress(address);
+                                setAddressModalVisible(true);
+                              }}
+                              style={({ pressed }) => [styles.addressActionBtn, pressed && styles.addressActionBtnPressed]}
+                            >
+                              <Text style={styles.addressActionText}>Edit</Text>
+                            </Pressable>
+                            <Pressable
+                              onPress={() => handleDeleteAddress(address)}
                               disabled={isBusy}
                               style={({ pressed }) => [styles.addressActionBtn, pressed && styles.addressActionBtnPressed]}
                             >
-                              <Text style={styles.addressActionText}>Set default</Text>
+                              <Text style={styles.addressDeleteText}>
+                                {deletingAddressId === address.id ? 'Removing...' : 'Delete'}
+                              </Text>
                             </Pressable>
-                          ) : null}
-                          <Pressable
-                            onPress={() => {
-                              setEditingAddress(address);
-                              setAddressModalVisible(true);
-                            }}
-                            style={({ pressed }) => [styles.addressActionBtn, pressed && styles.addressActionBtnPressed]}
-                          >
-                            <Text style={styles.addressActionText}>Edit</Text>
-                          </Pressable>
-                          <Pressable
-                            onPress={() => handleDeleteAddress(address)}
-                            disabled={isBusy}
-                            style={({ pressed }) => [styles.addressActionBtn, pressed && styles.addressActionBtnPressed]}
-                          >
-                            <Text style={styles.addressDeleteText}>
-                              {deletingAddressId === address.id ? 'Removing…' : 'Delete'}
-                            </Text>
-                          </Pressable>
+                          </View>
                         </View>
+                        <Text style={styles.addressSummary}>{formatAddress(address)}</Text>
                       </View>
-                      <Text style={styles.addressSummary}>{formatAddress(address)}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
+                    );
+                  })}
+                </View>
+              )}
+            </View>
           </View>
-        </View>
+        ) : null}
 
-        {/* QUICK ACTIONS */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
-            <Pressable
-              style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
-              onPress={() => navigation.navigate('FruitShop')}
-            >
-              <Text style={styles.actionEmoji}>🛒</Text>
-              <Text style={styles.actionLabel}>Shop</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
-              onPress={() => navigation.navigate('UserOrders')}
-            >
-              <Text style={styles.actionEmoji}>📋</Text>
-              <Text style={styles.actionLabel}>My Orders</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
-              onPress={() => navigation.navigate('Home')}
-            >
-              <Text style={styles.actionEmoji}>🏠</Text>
-              <Text style={styles.actionLabel}>Home</Text>
-            </Pressable>
+        {isCustomer ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <View style={styles.actionsGrid}>
+              <Pressable
+                style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
+                onPress={() => navigation.navigate('FruitShop')}
+              >
+                <Text style={styles.actionEmoji}>🛒</Text>
+                <Text style={styles.actionLabel}>Shop</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
+                onPress={() => navigation.navigate('UserOrders')}
+              >
+                <Text style={styles.actionEmoji}>📋</Text>
+                <Text style={styles.actionLabel}>My Orders</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
+                onPress={() => navigation.navigate('Home')}
+              >
+                <Text style={styles.actionEmoji}>🏠</Text>
+                <Text style={styles.actionLabel}>Home</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {/* SIGN OUT */}
         <View style={styles.section}>
@@ -420,40 +417,6 @@ export default function ProfileScreen({ navigation }) {
     </View>
   );
 }
-
-// ─── Menu Styles ─────────────────────────────────────────────────────────────
-const menu = StyleSheet.create({
-  overlay: {
-    position: 'absolute', left: 270, right: 0, top: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.35)', zIndex: 9,
-  },
-  sidebar: {
-    position: 'absolute', top: 0, left: 0, bottom: 0, width: 270,
-    backgroundColor: '#fff', paddingTop: Platform.OS === 'ios' ? 56 : 32,
-    paddingHorizontal: 20, paddingBottom: 32, zIndex: 10,
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 15,
-  },
-  brand: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  brandEmoji: { fontSize: 28, marginRight: 10 },
-  brandName: { fontSize: 20, fontWeight: '800', color: PINK },
-  divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 16 },
-  item: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, marginBottom: 4,
-  },
-  itemPressed: { backgroundColor: '#FFF0F7' },
-  itemIcon: { fontSize: 18, marginRight: 14, width: 24 },
-  itemLabel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
-  spacer: { flex: 1 },
-  logoutBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 14, paddingHorizontal: 12,
-    backgroundColor: '#FFF0F7', borderRadius: 12,
-  },
-  logoutPressed: { backgroundColor: '#FCE7F3' },
-  logoutIcon: { fontSize: 18, marginRight: 14 },
-  logoutText: { fontSize: 15, fontWeight: '700', color: PINK },
-});
 
 // ─── Screen Styles ────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({

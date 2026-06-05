@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme  } from '@react-navigation/native';
 import { AuthProvider } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
 import AppNavigator from './navigation/AppNavigator';
 import {
   PaperProvider,
@@ -21,7 +22,9 @@ export default function App() {
       <StatusBar hidden />
       <NavigationContainer>
         <AuthProvider>
-          <AppNavigator />
+          <CartProvider>
+            <AppNavigator />
+          </CartProvider>
         </AuthProvider>
       </NavigationContainer>
     </View>

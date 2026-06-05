@@ -49,6 +49,10 @@ export default function MainLayout({ title, navigation, children, name }) {
       <View style={{ flex: 1 }}>{children}</View>
 
       <UserMenu
+        onProfile={() => {
+          setUserMenuOpen(false);
+          navigation.navigate('Profile');
+        }}
         onLogout={logout}
         visible={userMenuOpen}
         onClose={() => setUserMenuOpen(false)}
