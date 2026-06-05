@@ -2,6 +2,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { auth } from '../firebaseConfig';
 import { signOut as firebaseSignOut } from 'firebase/auth';
 
@@ -59,6 +60,14 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
+    if (Platform.OS !== 'web') {
+      try {
+        await GoogleSignin.signOut();
+      } catch (error) {
+        console.error('Google signOut error:', error);
+      }
+    }
+
     try {
       // Sign out from Firebase
       await firebaseSignOut(auth);
